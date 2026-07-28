@@ -1,0 +1,10 @@
+{
+  "name": "Forex Stochastic Scanner",
+  "description": "Real-time Forex scanner for M15-H4 timeframes based on Stochastic Oscillator (8,3,3) close/close smoothed.",
+  "requestFramePermissions": [
+    "notifications"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
