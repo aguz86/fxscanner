@@ -1,0 +1,32 @@
+name: Auto Unzip to Root
+
+on:
+  push:
+    paths:
+      - '**.zip'
+
+jobs:
+  unzip-process:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Unzip to Root
+        run: |
+          for f in *.zip; do
+            [ -e "$f" ] || continue
+            unzip -o "$f" -d "."
+            rm "$f"
+          done
+
+      - name: Commit & Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Auto unzip to root: $(date)" || exit 0
+          git push
