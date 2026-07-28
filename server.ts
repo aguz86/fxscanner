@@ -9,6 +9,11 @@ const yahooFinance = new YFClass();
 const app = express();
 const PORT = 3000;
 
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 app.use(cors());
 
 // List of target pairs

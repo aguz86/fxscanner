@@ -54,8 +54,22 @@ export const Dashboard: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/signals?timeframe=${timeframe}`);
-      if (!response.ok) throw new Error('Failed to fetch data');
+      const response = await fetch(`/api/signals?timeframe=${timeframe}`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Failed to fetch data: ${response.status} ${text.substring(0, 50)}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(`Expected JSON but got ${contentType}: ${text.substring(0, 50)}`);
+      }
+      
       const results: SignalData[] = await response.json();
       setData(results);
       setLastUpdated(new Date());
