@@ -15,7 +15,8 @@ export const Dashboard: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   
   // Risk Management State
-  const [maxLossUsd, setMaxLossUsd] = useState<number>(25);
+  const [balance, setBalance] = useState<number>(1000);
+  const [riskPercent, setRiskPercent] = useState<number>(2.5);
   const [tpPoints, setTpPoints] = useState<number>(180);
   const [slPoints, setSlPoints] = useState<number>(650);
   
@@ -142,7 +143,7 @@ export const Dashboard: React.FC = () => {
   const mostOversold = [...data].sort((a, b) => a.k - b.k)[0];
 
   const calculateLotSize = (pair: string) => {
-    const riskUsd = maxLossUsd;
+    const riskUsd = balance * (riskPercent / 100);
     let lossPerLotUsd = slPoints;
 
     const getPrice = (p: string) => data.find(d => d.pair === p)?.close || 0;
@@ -229,18 +230,30 @@ export const Dashboard: React.FC = () => {
         </header>
 
         {/* Risk Management Config Bar */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 md:p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Max Loss Per Trade (USD)</label>
+            <label className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Balance (USD)</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">$</span>
               <input 
                 type="number" 
-                step="1"
-                value={maxLossUsd} 
-                onChange={(e) => setMaxLossUsd(Number(e.target.value))}
+                value={balance} 
+                onChange={(e) => setBalance(Number(e.target.value))}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-8 pr-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
               />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Risk Per Trade (%)</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                step="0.1"
+                value={riskPercent} 
+                onChange={(e) => setRiskPercent(Number(e.target.value))}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-4 pr-8 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">%</span>
             </div>
           </div>
           <div className="space-y-2">
@@ -350,15 +363,27 @@ export const Dashboard: React.FC = () => {
           <div className="text-sm text-neutral-500">
             &copy; {new Date().getFullYear()} Forex Scanner. All rights reserved.
           </div>
-          {deferredPrompt && (
-            <button 
-              onClick={handleInstallClick}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-indigo-500/50 text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 transition-all"
-            >
-              <Download size={16} />
-              Install PWA App
-            </button>
-          )}
+          <button 
+            onClick={() => {
+              if (deferredPrompt) {
+                handleInstallClick();
+              } else {
+                alert('Install prompt is not available. You might have already installed the app, or your browser does not support it.');
+              }
+            }}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl border border-[#00f076]/30 text-white bg-black hover:bg-neutral-900 transition-all shadow-sm group"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 48 48" className="group-hover:scale-105 transition-transform">
+              <path fill="#4caf50" d="M41.7 20.3L9.6 1.8C8-.1 6.1-1.3 6.1 1.9v44.3c0 3.2 1.9 2 3.5.1l32.1-18.5c1.6-1.9 1.6-5.6 0-7.5z"/>
+              <path fill="#2196f3" d="M31.2 24l-25.1 24.2c-.3 0-.6-.1-.9-.2L31.2 24z"/>
+              <path fill="#ffc107" d="M41.7 27.8l-10.5-6v-3.7l10.5-6c1.6-1.9 3.5-.8 3.5.9v13.9c0 1.7-1.9 2.8-3.5.9z"/>
+              <path fill="#f44336" d="M31.2 24L5.2-.1c.3 0 .6-.1.9-.2L31.2 24z"/>
+            </svg>
+            <div className="flex flex-col items-start leading-none text-left">
+              <span className="text-[10px] text-neutral-400 font-medium">GET IT ON</span>
+              <span className="text-sm font-semibold tracking-wide">Google Play</span>
+            </div>
+          </button>
         </footer>
         
       </div>
