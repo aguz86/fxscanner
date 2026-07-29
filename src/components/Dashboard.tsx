@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SignalData, Timeframe } from '../types';
 import { SignalCard } from './SignalCard';
-import { Activity, Bell, BellOff, RefreshCw, AlertTriangle, Info, ArrowDown, ArrowUp } from 'lucide-react';
+import { Activity, Bell, BellOff, RefreshCw, AlertTriangle, Info, ArrowDown, ArrowUp, Download } from 'lucide-react';
 import { cn } from './SignalCard';
 import { format } from 'date-fns';
 
@@ -12,10 +12,10 @@ export const Dashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   
   // Risk Management State
-  const [balance, setBalance] = useState<number>(1000);
-  const [riskPercent, setRiskPercent] = useState<number>(2.5);
+  const [maxLossUsd, setMaxLossUsd] = useState<number>(25);
   const [tpPoints, setTpPoints] = useState<number>(180);
   const [slPoints, setSlPoints] = useState<number>(650);
   
@@ -31,7 +31,27 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     checkNotificationPermission();
+
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
 
   const toggleNotifications = async () => {
     if (!('Notification' in window)) {
@@ -122,7 +142,7 @@ export const Dashboard: React.FC = () => {
   const mostOversold = [...data].sort((a, b) => a.k - b.k)[0];
 
   const calculateLotSize = (pair: string) => {
-    const riskUsd = balance * (riskPercent / 100);
+    const riskUsd = maxLossUsd;
     let lossPerLotUsd = slPoints;
 
     const getPrice = (p: string) => data.find(d => d.pair === p)?.close || 0;
@@ -209,30 +229,18 @@ export const Dashboard: React.FC = () => {
         </header>
 
         {/* Risk Management Config Bar */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 md:p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Balance (USD)</label>
+            <label className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Max Loss Per Trade (USD)</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">$</span>
               <input 
                 type="number" 
-                value={balance} 
-                onChange={(e) => setBalance(Number(e.target.value))}
+                step="1"
+                value={maxLossUsd} 
+                onChange={(e) => setMaxLossUsd(Number(e.target.value))}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-8 pr-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
               />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Risk Per Trade (%)</label>
-            <div className="relative">
-              <input 
-                type="number" 
-                step="0.1"
-                value={riskPercent} 
-                onChange={(e) => setRiskPercent(Number(e.target.value))}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-4 pr-8 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">%</span>
             </div>
           </div>
           <div className="space-y-2">
@@ -336,6 +344,22 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         )}
+        
+        {/* Footer Section */}
+        <footer className="pt-10 pb-6 mt-10 border-t border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-neutral-500">
+            &copy; {new Date().getFullYear()} Forex Scanner. All rights reserved.
+          </div>
+          {deferredPrompt && (
+            <button 
+              onClick={handleInstallClick}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-indigo-500/50 text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 transition-all"
+            >
+              <Download size={16} />
+              Install PWA App
+            </button>
+          )}
+        </footer>
         
       </div>
     </div>

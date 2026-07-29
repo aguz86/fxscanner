@@ -3,23 +3,56 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const storedAuth = localStorage.getItem('fxScannerAuth');
+      if (storedAuth) {
+        try {
+          const { username: storedUsername, expiresAt } = JSON.parse(storedAuth);
+          if (Date.now() < expiresAt) {
+            setUsername(storedUsername);
+            setIsLoggedIn(true);
+          } else {
+            localStorage.removeItem('fxScannerAuth');
+          }
+        } catch (e) {
+          localStorage.removeItem('fxScannerAuth');
+        }
+      }
+      setIsCheckingAuth(false);
+    };
+    checkAuth();
+  }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (username.toLowerCase() === 'jfx') {
       setIsLoggedIn(true);
       setError('');
+      // Save for 30 days
+      const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      localStorage.setItem('fxScannerAuth', JSON.stringify({ username, expiresAt }));
     } else {
       setError('Invalid username');
     }
   };
+
+  if (isCheckingAuth) {
+    return (
+      <main className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-6">
+        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      </main>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
