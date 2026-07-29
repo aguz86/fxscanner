@@ -81,6 +81,10 @@ function calculateStochastic(closes: number[], kPeriod: number, dPeriod: number,
 let cachedNews: any[] = [];
 let newsLastFetched = 0;
 
+// Cache signals per timeframe
+const signalCache: Record<string, { data: any, timestamp: number }> = {};
+const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
+
 async function getHighImpactNews() {
   const now = Date.now();
   if (now - newsLastFetched > 60 * 60 * 1000) { // 1 hour cache
@@ -154,6 +158,13 @@ async function startServer() {
   app.get('/api/signals', async (req, res) => {
     const { timeframe = '15m' } = req.query;
     
+    // Check cache
+    const cacheKey = String(timeframe);
+    if (signalCache[cacheKey] && (Date.now() - signalCache[cacheKey].timestamp < CACHE_DURATION)) {
+      console.log(`[CACHE HIT] Returning cached signals for timeframe: ${timeframe}`);
+      return res.json(signalCache[cacheKey].data);
+    }
+    
     // Map to yahoo-finance intervals
     let interval: '15m' | '60m' = '15m';
     let isH4 = false;
@@ -222,6 +233,13 @@ async function startServer() {
       });
 
       const results = (await Promise.all(promises)).filter(Boolean);
+      
+      // Update cache
+      signalCache[cacheKey] = {
+        data: results,
+        timestamp: Date.now()
+      };
+      
       res.json(results);
     } catch (error) {
       console.error(error);

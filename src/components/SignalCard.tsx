@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SignalData } from '../types';
-import { ArrowUp, ArrowDown, Minus, Lock, Clock, X } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Lock, Clock, X, Bell } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -11,9 +11,10 @@ export function cn(...inputs: (string | undefined | null | false)[]) {
 interface SignalCardProps {
   data: SignalData;
   lotSize?: number;
+  onSetPriceAlert?: (price: number) => void;
 }
 
-export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize }) => {
+export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize, onSetPriceAlert }) => {
   const isBuy = data.signal === 'buy';
   const isSell = data.signal === 'sell';
   const isNeutral = data.signal === 'neutral';
@@ -21,6 +22,8 @@ export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize }) => {
 
   const [now, setNow] = useState(Date.now());
   const [showTradeModal, setShowTradeModal] = useState(false);
+  const [showPriceAlertPrompt, setShowPriceAlertPrompt] = useState(false);
+  const [alertPrice, setAlertPrice] = useState<string>(data.close.toFixed(5));
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -97,28 +100,65 @@ export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize }) => {
               </div>
             )}
           </div>
-          <div className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-full",
-            isLocked ? "bg-amber-500/10 text-amber-500/50" :
-            isBuy ? "bg-emerald-500/20 text-emerald-400" :
-            isSell ? "bg-rose-500/20 text-rose-400" :
-            "bg-neutral-800 text-neutral-400"
-          )}>
-            {isLocked ? <Lock size={16} /> : (
-              <>
-                {isBuy && <ArrowUp size={18} strokeWidth={3} />}
-                {isSell && <ArrowDown size={18} strokeWidth={3} />}
-                {isNeutral && <Minus size={18} strokeWidth={3} />}
-              </>
-            )}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowPriceAlertPrompt(!showPriceAlertPrompt)}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors"
+              title="Set Price Alert"
+            >
+              <Bell size={14} />
+            </button>
+            <div className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-full",
+              isLocked ? "bg-amber-500/10 text-amber-500/50" :
+              isBuy ? "bg-emerald-500/20 text-emerald-400" :
+              isSell ? "bg-rose-500/20 text-rose-400" :
+              "bg-neutral-800 text-neutral-400"
+            )}>
+              {isLocked ? <Lock size={16} /> : (
+                <>
+                  {isBuy && <ArrowUp size={18} strokeWidth={3} />}
+                  {isSell && <ArrowDown size={18} strokeWidth={3} />}
+                  {isNeutral && <Minus size={18} strokeWidth={3} />}
+                </>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="space-y-3">
           <div className="flex justify-between items-end">
             <span className="text-sm font-medium text-neutral-400">Close</span>
-            <span className="text-base font-semibold text-neutral-200">{data.close.toFixed(4)}</span>
+            <span className="text-base font-semibold text-neutral-200">{data.close.toFixed(5)}</span>
           </div>
+
+          {showPriceAlertPrompt && (
+            <div className="flex items-center gap-2 mt-2 bg-neutral-950 p-2 rounded-lg border border-indigo-500/30">
+              <input 
+                type="text" 
+                value={alertPrice}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || /^\d*\.?\d{0,5}$/.test(val)) {
+                    setAlertPrice(val);
+                  }
+                }}
+                className="w-full bg-transparent border-none focus:outline-none text-sm text-white px-2 py-1 font-mono"
+              />
+              <button 
+                onClick={() => {
+                  const parsed = parseFloat(alertPrice);
+                  if (!isNaN(parsed) && onSetPriceAlert) {
+                    onSetPriceAlert(parsed);
+                    setShowPriceAlertPrompt(false);
+                  }
+                }}
+                className="bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-bold px-3 py-1.5 rounded-md transition-colors whitespace-nowrap"
+              >
+                Set Alert
+              </button>
+            </div>
+          )}
           
           <div className="space-y-1.5">
             <div className="flex justify-between items-center text-sm">

@@ -5,7 +5,11 @@ import { Activity, Bell, BellOff, RefreshCw, AlertTriangle, Info, ArrowDown, Arr
 import { cn } from './SignalCard';
 import { format } from 'date-fns';
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  metaquotesId?: string;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
   const [timeframe, setTimeframe] = useState<Timeframe>('15m');
   const [data, setData] = useState<SignalData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +24,9 @@ export const Dashboard: React.FC = () => {
   const [tpPoints, setTpPoints] = useState<number>(180);
   const [slPoints, setSlPoints] = useState<number>(650);
   
+  // Notification State
+  const [priceAlerts, setPriceAlerts] = useState<Record<string, number>>({});
+
   // Track previous signals to avoid spamming notifications
   const previousSignals = useRef<Record<string, string>>({});
 
@@ -44,6 +51,25 @@ export const Dashboard: React.FC = () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
+
+  const sendPushNotification = (title: string, body: string) => {
+    if (metaquotesId && metaquotesId.length > 0) {
+      console.log(`[MQ Push Simulated] To: ${metaquotesId} | Title: ${title} | Body: ${body}`);
+      if (notificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(`MQ Push: ${title}`, { body: `(To MQID: ${metaquotesId})\n${body}`, icon: '/vite.svg' });
+      }
+    } else {
+      console.log(`[Local Notification] Title: ${title} | Body: ${body}`);
+      if (notificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, { body, icon: '/vite.svg' });
+      }
+    }
+  };
+
+  const handleSetPriceAlert = (pair: string, price: number) => {
+    setPriceAlerts(prev => ({ ...prev, [pair]: price }));
+    alert(`Price alert set! You will be notified when ${pair} hits ${price}.` + (metaquotesId ? ` (via MQID ${metaquotesId})` : ''));
+  };
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -96,18 +122,39 @@ export const Dashboard: React.FC = () => {
       setLastUpdated(new Date());
 
       // Check for notifications
-      if (notificationsEnabled && 'Notification' in window) {
-        results.forEach((pair) => {
-          const prevSignal = previousSignals.current[pair.pair];
-          if (pair.signal !== 'neutral' && prevSignal !== pair.signal) {
-            new Notification(`Forex Alert: ${pair.pair} - ${pair.signal.toUpperCase()}`, {
-              body: `Stochastic %K: ${pair.k.toFixed(2)}, %D: ${pair.d.toFixed(2)} on ${timeframe}`,
-              icon: '/vite.svg' // Placeholder icon
+      results.forEach((pair) => {
+        // 1. Sinyal Terbuka (Open Signal) Notification
+        const prevSignal = previousSignals.current[pair.pair];
+        if (pair.signal !== 'neutral' && prevSignal !== pair.signal) {
+          sendPushNotification(
+            `Forex Alert: ${pair.pair} - ${pair.signal.toUpperCase()}`,
+            `Stochastic %K: ${pair.k.toFixed(2)}, %D: ${pair.d.toFixed(2)} on ${timeframe}`
+          );
+        }
+        previousSignals.current[pair.pair] = pair.signal;
+        
+        // 2. Price Notification
+        if (priceAlerts[pair.pair]) {
+          const alertPrice = priceAlerts[pair.pair];
+          // Check if current close crossed the alert price. 
+          // We can do a simple check: if it is within 0.05% of the target, alert.
+          // Or just notify that it's close. We'll do a simple cross check if we had previous close, 
+          // but for now, just trigger if the difference is very small (within 5 pips).
+          const pipDiff = Math.abs(pair.close - alertPrice) / 0.0001; // roughly pips
+          if (pipDiff < 5) {
+            sendPushNotification(
+              `Price Alert: ${pair.pair} reached ${alertPrice}`,
+              `Current price is ${pair.close.toFixed(5)}`
+            );
+            // Remove the alert so it doesn't spam
+            setPriceAlerts(prev => {
+              const newAlerts = { ...prev };
+              delete newAlerts[pair.pair];
+              return newAlerts;
             });
           }
-          previousSignals.current[pair.pair] = pair.signal;
-        });
-      }
+        }
+      });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -352,6 +399,7 @@ export const Dashboard: React.FC = () => {
                   key={pairData.pair} 
                   data={pairData} 
                   lotSize={calculateLotSize(pairData.pair)} 
+                  onSetPriceAlert={(price: number) => handleSetPriceAlert(pairData.pair, price)}
                 />
               ))}
             </div>
