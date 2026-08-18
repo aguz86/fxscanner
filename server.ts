@@ -19,7 +19,8 @@ app.use(cors());
 // List of target pairs
 const PAIRS = [
   'EURUSD=X', 'AUDUSD=X', 'GBPUSD=X', 'GBPAUD=X', 'EURAUD=X',
-  'EURCAD=X', 'AUDCAD=X', 'GBPCAD=X', 'USDCHF=X', 'GBPCHF=X'
+  'EURCAD=X', 'AUDCAD=X', 'GBPCAD=X', 'USDCHF=X', 'GBPCHF=X',
+  'NQ=F'
 ];
 
 /**
@@ -87,7 +88,7 @@ const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 
 async function getHighImpactNews() {
   const now = Date.now();
-  if (now - newsLastFetched > 60 * 60 * 1000) { // 1 hour cache
+  if (now - newsLastFetched > 60 * 1000) { // 1 minute cache for real-time actuals
     try {
       const response = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
         headers: {
@@ -100,7 +101,9 @@ async function getHighImpactNews() {
       const text = await response.text();
       try {
         const data = JSON.parse(text);
+        
         cachedNews = data.filter((item: any) => item.impact === 'High');
+        
         newsLastFetched = now;
       } catch (e) {
         throw new Error(`Failed to parse JSON: ${text.substring(0, 50)}...`);
@@ -120,26 +123,67 @@ async function getHighImpactNews() {
 }
 
 function checkNewsLock(pair: string, newsEvents: any[]) {
-  const currenciesInPair = [pair.substring(0, 3), pair.substring(3, 6)];
+  const isNasdaq = pair === 'NASDAQ';
+  const currenciesInPair = isNasdaq ? ['USD'] : [pair.substring(0, 3), pair.substring(3, 6)];
   const nowMs = Date.now();
 
   let locked = false;
   let reason = null;
-  let lockEndTime = null;
-  let nextNewsTime = null;
-  let nextNewsTitle = null;
+  let lockEndTime: number | null = null;
+  let nextNewsTime: number | null = null;
+  let nextNewsTitle: string | null = null;
 
   for (const event of newsEvents) {
-    if (currenciesInPair.includes(event.country)) {
+    if (event.impact !== 'High') continue;
+
+    const title = event.title.toLowerCase();
+    
+    // Default rules for other high impact news
+    let hoursBefore = 10;
+    let hoursAfter = 6;
+    let affectsAllPairs = false;
+
+    // Apply specific user rules based on news title
+    if (title.includes('jobless claim') || title.includes('unemployment claim')) {
+      hoursBefore = 12;
+      hoursAfter = 6;
+    } else if (title.includes('jolt')) {
+      hoursBefore = 14;
+      hoursAfter = 8;
+    } else if (title.includes('core pce')) {
+      hoursBefore = 14;
+      hoursAfter = 8;
+      affectsAllPairs = true;
+    } else if (title.includes('fomc') || title.includes('federal funds rate') || title.includes('rate decision')) {
+      hoursBefore = 14;
+      hoursAfter = 8;
+      affectsAllPairs = true;
+    } else if (title.includes('cpi')) {
+      hoursBefore = 20;
+      hoursAfter = 8;
+      affectsAllPairs = true;
+    } else if (title.includes('non-farm') || title.includes('nfp') || title.includes('nonfarm') || title.includes('employment change')) {
+      hoursBefore = 26;
+      hoursAfter = 8;
+      affectsAllPairs = true;
+    }
+
+    // Specific rule for NASDAQ
+    if (isNasdaq && (currenciesInPair.includes(event.country) || (affectsAllPairs && event.country === 'USD'))) {
+      hoursBefore = 16;
+      hoursAfter = 8;
+    }
+
+    if (affectsAllPairs || currenciesInPair.includes(event.country)) {
       const eventTime = new Date(event.date).getTime();
-      const tenHoursBefore = eventTime - 10 * 60 * 60 * 1000;
-      const sixHoursAfter = eventTime + 6 * 60 * 60 * 1000;
+      const lockStartTimeMs = eventTime - hoursBefore * 60 * 60 * 1000;
+      const lockEndTimeMs = eventTime + hoursAfter * 60 * 60 * 1000;
       
-      if (nowMs >= tenHoursBefore && nowMs <= sixHoursAfter) {
+      if (nowMs >= lockStartTimeMs && nowMs <= lockEndTimeMs) {
         locked = true;
-        reason = `High impact news for ${event.country}: ${event.title}`;
-        if (!lockEndTime || sixHoursAfter > lockEndTime) {
-            lockEndTime = sixHoursAfter;
+        reason = `High impact news: ${event.title} (${event.country})`;
+        if (!lockEndTime || lockEndTimeMs > lockEndTime) {
+            lockEndTime = lockEndTimeMs;
         }
       }
       
@@ -151,10 +195,21 @@ function checkNewsLock(pair: string, newsEvents: any[]) {
       }
     }
   }
+
   return { locked, reason, lockEndTime, nextNewsTime, nextNewsTitle };
 }
 
 async function startServer() {
+  app.get('/api/news', async (req, res) => {
+    try {
+      const newsEvents = await getHighImpactNews();
+      res.json(newsEvents);
+    } catch (error: any) {
+      console.error('Error fetching news:', error);
+      res.status(500).json({ error: 'Failed to fetch news data' });
+    }
+  });
+
   app.get('/api/signals', async (req, res) => {
     const { timeframe = '15m' } = req.query;
     
@@ -182,7 +237,9 @@ async function startServer() {
 
       const promises = PAIRS.map(async (symbol) => {
         try {
-          const pairClean = symbol.replace('=X', '');
+          let pairClean = symbol.replace('=X', '');
+          if (symbol === 'NQ=F') pairClean = 'NASDAQ';
+          
           const newsLock = checkNewsLock(pairClean, newsEvents);
           
           const result = await yahooFinance.chart(symbol, {

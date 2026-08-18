@@ -6,14 +6,16 @@
 import React, { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { ProfitCalculator } from './components/ProfitCalculator';
-import { Activity, Calculator, LogOut } from 'lucide-react';
+import { Calendar as CalendarTab } from './components/Calendar';
+import { Rules as RulesTab } from './components/Rules';
+import { Activity, Calculator, LogOut, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [activeTab, setActiveTab] = useState<'scanner' | 'calculator'>('scanner');
+  const [activeTab, setActiveTab] = useState<'scanner' | 'calculator' | 'calendar' | 'rules'>('scanner');
   const [metaquotesId, setMetaquotesId] = useState('2EB3A8DA');
 
   useEffect(() => {
@@ -106,41 +108,68 @@ export default function App() {
   return (
     <main className="min-h-screen bg-[#0A0A0A] text-white font-sans flex flex-col">
       <nav className="border-b border-neutral-800 bg-neutral-950 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 md:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#0277bd] to-[#01579b] flex items-center justify-center font-black italic text-white tracking-tighter text-sm">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-y-3 py-3 md:h-16 md:py-0">
+            {/* Logo */}
+            <div className="flex items-center gap-2 order-1">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#0277bd] to-[#01579b] flex items-center justify-center font-black italic text-white tracking-tighter text-sm flex-shrink-0">
                 J<span className="text-[#ffc107]">FX</span>
               </div>
               <span className="font-bold tracking-wide hidden sm:block">Scanner</span>
             </div>
             
-            <div className="flex items-center gap-1 sm:gap-4 flex-1 justify-center">
+            {/* Navigation Tabs */}
+            <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar w-full md:w-auto order-3 md:order-2 justify-start md:justify-center pb-1 md:pb-0">
               <button
                 onClick={() => setActiveTab('scanner')}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                className={`flex flex-shrink-0 items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
                   activeTab === 'scanner'
                     ? 'bg-indigo-500/10 text-indigo-400'
                     : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-300'
                 }`}
               >
                 <Activity size={18} />
-                <span className="hidden sm:inline">Scanner</span>
+                <span className="inline">Scanner</span>
               </button>
               <button
                 onClick={() => setActiveTab('calculator')}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                className={`flex flex-shrink-0 items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
                   activeTab === 'calculator'
                     ? 'bg-indigo-500/10 text-indigo-400'
                     : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-300'
                 }`}
               >
                 <Calculator size={18} />
-                <span className="hidden sm:inline">Profit Calculator</span>
+                <span className="inline">Calculator</span>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('calendar')}
+                className={`flex flex-shrink-0 items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                  activeTab === 'calendar'
+                    ? 'bg-indigo-500/10 text-indigo-400'
+                    : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-300'
+                }`}
+              >
+                <CalendarIcon size={18} />
+                <span className="inline">Kalendar</span>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('rules')}
+                className={`flex flex-shrink-0 items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                  activeTab === 'rules'
+                    ? 'bg-indigo-500/10 text-indigo-400'
+                    : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-300'
+                }`}
+              >
+                <BookOpen size={18} />
+                <span className="inline">Rule</span>
               </button>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-3">
+            {/* Right Controls */}
+            <div className="flex items-center gap-1 sm:gap-3 order-2 md:order-3">
               <div className="flex items-center gap-1 sm:gap-2 bg-neutral-900 rounded-lg px-2 sm:px-3 py-1.5 border border-neutral-800 focus-within:border-indigo-500/50 transition-colors">
                 <span className="text-xs text-neutral-400 font-semibold tracking-wider hidden sm:inline">MQID</span>
                 <input 
@@ -159,11 +188,11 @@ export default function App() {
               </div>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-neutral-400 hover:bg-neutral-900 hover:text-white transition-colors"
+                className="flex items-center justify-center w-8 h-8 sm:w-auto sm:h-auto sm:px-3 sm:py-2 rounded-xl text-neutral-400 hover:bg-neutral-900 hover:text-white transition-colors"
                 title="Log Out"
               >
                 <LogOut size={18} />
-                <span className="hidden sm:inline text-sm font-semibold">Logout</span>
+                <span className="hidden sm:inline text-sm font-semibold ml-2">Logout</span>
               </button>
             </div>
           </div>
@@ -171,7 +200,10 @@ export default function App() {
       </nav>
 
       <div className="flex-1">
-        {activeTab === 'scanner' ? <Dashboard metaquotesId={metaquotesId} /> : <ProfitCalculator currentRates={[]} />}
+        {activeTab === 'scanner' && <Dashboard metaquotesId={metaquotesId} />}
+        {activeTab === 'calculator' && <ProfitCalculator currentRates={[]} />}
+        {activeTab === 'calendar' && <CalendarTab />}
+        {activeTab === 'rules' && <RulesTab />}
       </div>
     </main>
   );
