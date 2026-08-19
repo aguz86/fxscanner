@@ -46,8 +46,8 @@ export function Calendar() {
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
     return {
-      dayStr: date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
-      timeStr: date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+      dayStr: date.toLocaleDateString('id-ID', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Jakarta' }),
+      timeStr: date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' }).replace(/\./g, ':')
     };
   };
 
@@ -128,7 +128,7 @@ export function Calendar() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-neutral-950 border-b border-neutral-800">
-                    <th className="py-4 px-6 font-semibold text-neutral-400 text-sm whitespace-nowrap">Tanggal & Waktu</th>
+                    <th className="py-4 px-6 font-semibold text-neutral-400 text-sm whitespace-nowrap">Tanggal & Jam WIB</th>
                     <th className="py-4 px-6 font-semibold text-neutral-400 text-sm">Mata Uang</th>
                     <th className="py-4 px-6 font-semibold text-neutral-400 text-sm">Event Berita</th>
                     <th className="py-4 px-6 font-semibold text-neutral-400 text-sm">Aktual (Actual)</th>
