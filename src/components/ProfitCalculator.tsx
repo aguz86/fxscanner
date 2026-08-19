@@ -9,7 +9,7 @@ interface ProfitCalculatorProps {
 export const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ currentRates = [] }) => {
   const PAIRS = [
     'EURUSD', 'AUDUSD', 'GBPUSD', 'GBPAUD', 'EURAUD',
-    'EURCAD', 'AUDCAD', 'GBPCAD', 'USDCHF', 'GBPCHF'
+    'EURCAD', 'AUDCAD', 'GBPCAD', 'USDCHF', 'GBPCHF', 'NASDAQ'
   ];
 
   const [rates, setRates] = useState<SignalData[]>(currentRates);
@@ -20,6 +20,11 @@ export const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ currentRates
   const [openPrice, setOpenPrice] = useState<number | ''>('');
   const [tpPoints, setTpPoints] = useState<number | ''>('');
   const [slPoints, setSlPoints] = useState<number | ''>('');
+
+  const isNasdaq = pair === 'NASDAQ';
+  const pointMultiplier = isNasdaq ? 1.0 : 0.00001;
+  const contractSize = isNasdaq ? 1 : 100000;
+  const priceDecimals = isNasdaq ? 2 : 5;
 
   useEffect(() => {
     if (currentRates.length > 0) {
@@ -39,7 +44,7 @@ export const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ currentRates
           // Set initial prices for default pair
           const defaultRate = data.find(r => r.pair === pair);
           if (defaultRate && openPrice === '') {
-            setOpenPrice(Number(defaultRate.close.toFixed(5)));
+            setOpenPrice(Number(defaultRate.close.toFixed(priceDecimals)));
           }
         }
       } catch (error) {
@@ -56,16 +61,17 @@ export const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ currentRates
   useEffect(() => {
     const rate = rates.find(r => r.pair === pair);
     if (rate && openPrice === '') {
-      setOpenPrice(Number(rate.close.toFixed(5)));
+      setOpenPrice(Number(rate.close.toFixed(priceDecimals)));
     }
-  }, [rates]); // Auto-fill on initial rates load
+  }, [rates, pair]); // Auto-fill on initial rates load or pair change
 
   const calculateProfitByPoints = (points: number | '') => {
     if (points === '' || !volume) return 0;
-    const contractSize = 100000;
-    const priceDiff = points * 0.00001; // 1 point = 0.00001
+    const priceDiff = points * pointMultiplier;
     let profitQuote = priceDiff * volume * contractSize;
     
+    if (isNasdaq) return profitQuote; // NASDAQ is quoted in USD
+
     const quoteCurrency = pair.substring(3, 6);
     if (quoteCurrency === 'USD') return profitQuote;
     if (quoteCurrency === 'AUD') {
@@ -140,7 +146,8 @@ export const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ currentRates
                       setPair(e.target.value);
                       const rate = rates.find(r => r.pair === e.target.value);
                       if (rate) {
-                        setOpenPrice(Number(rate.close.toFixed(5)));
+                        const decimals = e.target.value === 'NASDAQ' ? 2 : 5;
+                        setOpenPrice(Number(rate.close.toFixed(decimals)));
                       }
                     }}
                     className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
@@ -167,7 +174,7 @@ export const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ currentRates
                   <label className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Open Price</label>
                   <input 
                     type="number"
-                    step="0.00001"
+                    step={pointMultiplier}
                     value={openPrice}
                     onChange={(e) => setOpenPrice(e.target.value === '' ? '' : Number(e.target.value))}
                     className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
@@ -214,7 +221,7 @@ export const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ currentRates
                         <div className="flex justify-between items-center mb-2">
                             <div className="text-xs text-emerald-400/80 uppercase tracking-wider">Take Profit ({tpPoints} pts)</div>
                             <div className="text-sm font-mono text-emerald-400/80">
-                                @ {openPrice !== '' ? (action === 'buy' ? openPrice + tpPoints * 0.00001 : openPrice - tpPoints * 0.00001).toFixed(5) : '-'}
+                                @ {openPrice !== '' ? (action === 'buy' ? openPrice + tpPoints * pointMultiplier : openPrice - tpPoints * pointMultiplier).toFixed(priceDecimals) : '-'}
                             </div>
                         </div>
                         <div className="font-mono text-3xl text-emerald-400 font-bold">
@@ -227,7 +234,7 @@ export const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ currentRates
                         <div className="flex justify-between items-center mb-2">
                             <div className="text-xs text-rose-400/80 uppercase tracking-wider">Stop Loss ({slPoints} pts)</div>
                             <div className="text-sm font-mono text-rose-400/80">
-                                @ {openPrice !== '' ? (action === 'buy' ? openPrice - slPoints * 0.00001 : openPrice + slPoints * 0.00001).toFixed(5) : '-'}
+                                @ {openPrice !== '' ? (action === 'buy' ? openPrice - slPoints * pointMultiplier : openPrice + slPoints * pointMultiplier).toFixed(priceDecimals) : '-'}
                             </div>
                         </div>
                         <div className="font-mono text-3xl text-rose-400 font-bold">
@@ -245,7 +252,7 @@ export const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ currentRates
                     <div className="pt-8 border-t border-neutral-800/50 w-full grid grid-cols-2 gap-4 text-left">
                       <div>
                         <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Contract Size</div>
-                        <div className="font-mono text-sm">100,000</div>
+                        <div className="font-mono text-sm">{contractSize.toLocaleString()}</div>
                       </div>
                       <div>
                         <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Account Currency</div>
@@ -254,7 +261,7 @@ export const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ currentRates
                       <div className="col-span-2">
                         <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Point Value (1 Lot)</div>
                         <div className="font-mono text-sm">
-                          ${(calculateProfitByPoints(1) / (volume || 1)).toFixed(5)} / point
+                          ${(calculateProfitByPoints(1) / (volume || 1)).toFixed(priceDecimals)} / point
                         </div>
                       </div>
                     </div>

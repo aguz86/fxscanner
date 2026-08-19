@@ -11,19 +11,36 @@ export function cn(...inputs: (string | undefined | null | false)[]) {
 interface SignalCardProps {
   data: SignalData;
   lotSize?: number;
+  livePrice?: number;
   onSetPriceAlert?: (price: number) => void;
 }
 
-export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize, onSetPriceAlert }) => {
+export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize, livePrice, onSetPriceAlert }) => {
   const isBuy = data.signal === 'buy';
   const isSell = data.signal === 'sell';
   const isNeutral = data.signal === 'neutral';
   const isLocked = data.locked;
 
+  const currentPrice = livePrice ?? data.close;
+  const [prevPrice, setPrevPrice] = useState(currentPrice);
+  const [flashColor, setFlashColor] = useState<'green' | 'red' | null>(null);
+
   const [now, setNow] = useState(Date.now());
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [showPriceAlertPrompt, setShowPriceAlertPrompt] = useState(false);
   const [alertPrice, setAlertPrice] = useState<string>(data.close.toFixed(5));
+
+  useEffect(() => {
+    if (livePrice !== undefined && livePrice !== prevPrice) {
+      setFlashColor(livePrice > prevPrice ? 'green' : 'red');
+      setPrevPrice(livePrice);
+      
+      const timer = setTimeout(() => {
+        setFlashColor(null);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [livePrice, prevPrice]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -56,18 +73,18 @@ export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize, onSetPric
     if (data.signal === 'buy') {
       return {
         type: 'BUY',
-        entry: data.close.toFixed(decimals),
-        sl: (data.close - slPoints * pointMultiplier).toFixed(decimals),
-        tp: (data.close + tpPoints * pointMultiplier).toFixed(decimals),
+        entry: currentPrice.toFixed(decimals),
+        sl: (currentPrice - slPoints * pointMultiplier).toFixed(decimals),
+        tp: (currentPrice + tpPoints * pointMultiplier).toFixed(decimals),
         estProfit,
         estLoss,
       };
     } else {
       return {
         type: 'SELL',
-        entry: data.close.toFixed(decimals),
-        sl: (data.close + slPoints * pointMultiplier).toFixed(decimals),
-        tp: (data.close - tpPoints * pointMultiplier).toFixed(decimals),
+        entry: currentPrice.toFixed(decimals),
+        sl: (currentPrice + slPoints * pointMultiplier).toFixed(decimals),
+        tp: (currentPrice - tpPoints * pointMultiplier).toFixed(decimals),
         estProfit,
         estLoss,
       };
@@ -129,7 +146,14 @@ export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize, onSetPric
         <div className="space-y-3">
           <div className="flex justify-between items-end">
             <span className="text-sm font-medium text-neutral-400">Close</span>
-            <span className="text-base font-semibold text-neutral-200">{data.close.toFixed(5)}</span>
+            <span className={cn(
+              "text-base font-semibold transition-colors duration-500",
+              flashColor === 'green' ? "text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded -mr-1.5" : 
+              flashColor === 'red' ? "text-rose-400 bg-rose-400/10 px-1.5 py-0.5 rounded -mr-1.5" : 
+              "text-neutral-200"
+            )}>
+              {currentPrice.toFixed(5)}
+            </span>
           </div>
 
           {showPriceAlertPrompt && (

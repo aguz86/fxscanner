@@ -1,7 +1,56 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen, Activity, ShieldAlert, Clock } from 'lucide-react';
 
+interface NewsEvent {
+  title: string;
+  country: string;
+  date: string;
+  impact: string;
+}
+
 export function Rules() {
+  const [news, setNews] = useState<NewsEvent[]>([]);
+
+  useEffect(() => {
+    fetch('/api/news')
+      .then(res => res.json())
+      .then(data => setNews(data))
+      .catch(console.error);
+  }, []);
+
+  const getSchedule = (keywords: string[], country?: string) => {
+    const event = news.find(n => {
+      const matchKeyword = keywords.some(k => n.title.toLowerCase().includes(k.toLowerCase()));
+      if (country) {
+        return matchKeyword && n.country === country;
+      }
+      return matchKeyword;
+    });
+
+    if (!event) return { jam: '-', hari: 'Tidak ada minggu ini' };
+
+    const date = new Date(event.date);
+    
+    // Format jam (HH:mm) - using replace to ensure ':' separator instead of '.'
+    const jam = date.toLocaleTimeString('id-ID', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      hour12: false,
+      timeZone: 'Asia/Jakarta' 
+    }).replace(/\./g, ':');
+
+    // Format tanggal (Hari, DD/MM/YYYY)
+    const weekday = date.toLocaleDateString('id-ID', { weekday: 'long', timeZone: 'Asia/Jakarta' });
+    const day = date.toLocaleDateString('id-ID', { day: '2-digit', timeZone: 'Asia/Jakarta' });
+    const month = date.toLocaleDateString('id-ID', { month: '2-digit', timeZone: 'Asia/Jakarta' });
+    const year = date.toLocaleDateString('id-ID', { year: 'numeric', timeZone: 'Asia/Jakarta' });
+    
+    return {
+      jam: jam,
+      hari: `${weekday}, ${day}/${month}/${year}`
+    };
+  };
+
   return (
     <div className="flex-1 p-6 md:p-8 bg-black min-h-screen overflow-y-auto">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -57,84 +106,189 @@ export function Rules() {
               <p>
                 Sistem secara otomatis menarik jadwal berita <strong>High Impact</strong>. Jika sebuah berita dirilis, pair yang terpengaruh akan berstatus <span className="text-amber-500 font-semibold">Locked (News)</span> dan sinyal dinetralkan.
               </p>
-              <div className="p-4 bg-neutral-950 rounded-xl border border-neutral-800">
-                <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
-                  <Clock size={14} className="text-neutral-400"/> Aturan Default:
-                </h3>
-                <p className="text-neutral-400 text-xs">
-                  Berlaku untuk berita High Impact biasa. Hanya mengunci pair yang memiliki mata uang yang sama dengan berita.
-                </p>
-                <ul className="mt-2 text-xs space-y-1">
-                  <li>• <strong className="text-white">Waktu Kunci Awal:</strong> 10 Jam sebelum rilis</li>
-                  <li>• <strong className="text-white">Waktu Kunci Akhir:</strong> 6 Jam setelah rilis</li>
-                  <li>• <strong className="text-white">Cakupan:</strong> Hanya pair terkait</li>
-                </ul>
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Specific News Rules Table */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
-          <div className="p-6 border-b border-neutral-800">
-            <h2 className="text-lg font-bold text-white">Aturan Khusus Berita Tertentu</h2>
-            <p className="text-neutral-400 text-sm mt-1">Pengecualian waktu kunci (lock) untuk jenis berita yang sangat berdampak pada volatilitas pasar.</p>
+        <div className="space-y-6">
+          {/* TIER 1 */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="p-4 md:p-6 border-b border-red-500/20 bg-red-500/5">
+              <h2 className="text-lg font-bold text-red-400">TIER 1 - WAJIB OFF (24 Jam Sebelum & 8 Jam Sesudah)</h2>
+              <p className="text-neutral-400 text-sm mt-1">Berita paling krusial, berdampak pada semua instrumen berbasis USD dan Indeks.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-neutral-950">
+                  <tr>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold w-12">No</th>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold">News</th>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold">Jam WIB</th>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold">Tanggal</th>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold">Pair Yang Kena</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800 text-neutral-300">
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">1</td>
+                    <td className="py-3 px-6 font-medium text-white">FOMC Rate Decision</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['fomc', 'federal funds rate']).jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['fomc', 'federal funds rate']).hari}</td>
+                    <td className="py-3 px-6 font-semibold text-red-400">Semua pair USD + NASDAQ</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">2</td>
+                    <td className="py-3 px-6 font-medium text-white">NFP</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['nfp', 'non-farm', 'nonfarm', 'employment change'], 'USD').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['nfp', 'non-farm', 'nonfarm', 'employment change'], 'USD').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-red-400">Semua pair USD + NASDAQ</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">3</td>
+                    <td className="py-3 px-6 font-medium text-white">CPI AS</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['cpi'], 'USD').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['cpi'], 'USD').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-red-400">Semua pair USD + NASDAQ</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">4</td>
+                    <td className="py-3 px-6 font-medium text-white">Core PCE</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['core pce']).jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['core pce']).hari}</td>
+                    <td className="py-3 px-6 font-semibold text-red-400">Semua pair USD + NASDAQ</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-neutral-950">
-                <tr>
-                  <th className="py-3 px-6 text-neutral-400 font-semibold">Jenis Berita</th>
-                  <th className="py-3 px-6 text-neutral-400 font-semibold">Sebelum Rilis</th>
-                  <th className="py-3 px-6 text-neutral-400 font-semibold">Setelah Rilis</th>
-                  <th className="py-3 px-6 text-neutral-400 font-semibold">Cakupan Pair</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-800 text-neutral-300">
-                <tr className="hover:bg-neutral-800/50">
-                  <td className="py-3 px-6 font-medium text-white">Jobless Claim / Unemployment</td>
-                  <td className="py-3 px-6">12 Jam</td>
-                  <td className="py-3 px-6">6 Jam</td>
-                  <td className="py-3 px-6">Hanya pair terkait</td>
-                </tr>
-                <tr className="hover:bg-neutral-800/50">
-                  <td className="py-3 px-6 font-medium text-white">JOLTS</td>
-                  <td className="py-3 px-6">14 Jam</td>
-                  <td className="py-3 px-6">8 Jam</td>
-                  <td className="py-3 px-6">Hanya pair terkait</td>
-                </tr>
-                <tr className="hover:bg-neutral-800/50">
-                  <td className="py-3 px-6 font-medium text-white">Core PCE</td>
-                  <td className="py-3 px-6">14 Jam</td>
-                  <td className="py-3 px-6">8 Jam</td>
-                  <td className="py-3 px-6 text-amber-400 font-semibold">Semua Pair</td>
-                </tr>
-                <tr className="hover:bg-neutral-800/50">
-                  <td className="py-3 px-6 font-medium text-white">FOMC / Fed Funds Rate</td>
-                  <td className="py-3 px-6">14 Jam</td>
-                  <td className="py-3 px-6">8 Jam</td>
-                  <td className="py-3 px-6 text-amber-400 font-semibold">Semua Pair</td>
-                </tr>
-                <tr className="hover:bg-neutral-800/50">
-                  <td className="py-3 px-6 font-medium text-white">CPI</td>
-                  <td className="py-3 px-6">20 Jam</td>
-                  <td className="py-3 px-6">8 Jam</td>
-                  <td className="py-3 px-6 text-amber-400 font-semibold">Semua Pair</td>
-                </tr>
-                <tr className="hover:bg-neutral-800/50">
-                  <td className="py-3 px-6 font-medium text-white">NFP / Employment Change</td>
-                  <td className="py-3 px-6">26 Jam</td>
-                  <td className="py-3 px-6">8 Jam</td>
-                  <td className="py-3 px-6 text-amber-400 font-semibold">Semua Pair</td>
-                </tr>
-                <tr className="hover:bg-neutral-800/50">
-                  <td className="py-3 px-6 font-medium text-white">Khusus NASDAQ (Berita USD)</td>
-                  <td className="py-3 px-6">16 Jam</td>
-                  <td className="py-3 px-6">8 Jam</td>
-                  <td className="py-3 px-6 text-indigo-400 font-semibold">Hanya NASDAQ</td>
-                </tr>
-              </tbody>
-            </table>
+
+          {/* TIER 2 */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="p-4 md:p-6 border-b border-amber-500/20 bg-amber-500/5">
+              <h2 className="text-lg font-bold text-amber-400">TIER 2 - WAJIB OFF SESUAI NEGARA (18 Jam Sebelum & 6 Jam Sesudah)</h2>
+              <p className="text-neutral-400 text-sm mt-1">Berita spesifik negara, berdampak langsung pada pasangan mata uang yang bersangkutan.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-neutral-950">
+                  <tr>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold w-12">No</th>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold">News</th>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold">Jam WIB</th>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold">Tanggal</th>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold">Pair Yang Kena</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800 text-neutral-300">
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">5</td>
+                    <td className="py-3 px-6 font-medium text-white">CPI AUD + Employment AUD</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['cpi', 'employment'], 'AUD').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['cpi', 'employment'], 'AUD').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-amber-400">AUDUSD, AUDCAD, EURAUD, GBPAUD</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">6</td>
+                    <td className="py-3 px-6 font-medium text-white">RBA Rate Decision</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['rba', 'official bank rate'], 'AUD').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['rba', 'official bank rate'], 'AUD').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-amber-400">AUDUSD, AUDCAD, EURAUD, GBPAUD</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">7</td>
+                    <td className="py-3 px-6 font-medium text-white">CPI GBP</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['cpi'], 'GBP').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['cpi'], 'GBP').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-amber-400">GBPUSD, GBPCAD, GBPCHF, GBPAUD, EURUSD</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">8</td>
+                    <td className="py-3 px-6 font-medium text-white">BoE Rate Decision</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['boe', 'official bank rate'], 'GBP').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['boe', 'official bank rate'], 'GBP').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-amber-400">GBPUSD, GBPCAD, GBPCHF, GBPAUD</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">9</td>
+                    <td className="py-3 px-6 font-medium text-white">CPI EUR</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['cpi'], 'EUR').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['cpi'], 'EUR').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-amber-400">EURUSD, EURCAD, EURAUD</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">10</td>
+                    <td className="py-3 px-6 font-medium text-white">ECB Rate Decision</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['ecb', 'main refinancing rate'], 'EUR').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['ecb', 'main refinancing rate'], 'EUR').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-amber-400">EURUSD, EURCAD, EURAUD</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* TIER 3 */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="p-4 md:p-6 border-b border-blue-500/20 bg-blue-500/5">
+              <h2 className="text-lg font-bold text-blue-400">TIER 3 - WAJIB OFF TAMBAHAN AS (14 Jam Sebelum & 4 Jam Sesudah)</h2>
+              <p className="text-neutral-400 text-sm mt-1">Berita penunjang USD yang sering memberikan lonjakan volatilitas sekunder.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-neutral-950">
+                  <tr>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold w-12">No</th>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold">News</th>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold">Jam WIB</th>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold">Tanggal</th>
+                    <th className="py-3 px-6 text-neutral-400 font-semibold">Pair Yang Kena</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800 text-neutral-300">
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">11</td>
+                    <td className="py-3 px-6 font-medium text-white">
+                      Initial Jobless Claims
+                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">Baru</span>
+                    </td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['jobless claim', 'unemployment claim']).jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['jobless claim', 'unemployment claim']).hari}</td>
+                    <td className="py-3 px-6 font-semibold text-blue-400">Semua pair USD + NASDAQ</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">12</td>
+                    <td className="py-3 px-6 font-medium text-white">
+                      JOLTs Job Openings
+                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">Baru</span>
+                    </td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['jolt']).jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['jolt']).hari}</td>
+                    <td className="py-3 px-6 font-semibold text-blue-400">EURUSD, AUDUSD, GBPUSD, NASDAQ</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">13</td>
+                    <td className="py-3 px-6 font-medium text-white">Retail Sales AS</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['retail sales'], 'USD').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['retail sales'], 'USD').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-blue-400">Semua pair USD + NASDAQ</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">14</td>
+                    <td className="py-3 px-6 font-medium text-white">PPI AS</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['ppi'], 'USD').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['ppi'], 'USD').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-blue-400">Semua pair USD + NASDAQ</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">15</td>
+                    <td className="py-3 px-6 font-medium text-white">ISM PMI AS</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['ism pmi'], 'USD').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['ism pmi'], 'USD').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-blue-400">EURUSD, AUDUSD, GBPUSD, NASDAQ</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

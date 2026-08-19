@@ -23,6 +23,34 @@ const PAIRS = [
   'NQ=F'
 ];
 
+let pricesCache: { data: Record<string, number>, timestamp: number } | null = null;
+const PRICE_CACHE_DURATION = 3000; // 3 seconds
+
+app.get('/api/prices', async (req, res) => {
+  if (pricesCache && Date.now() - pricesCache.timestamp < PRICE_CACHE_DURATION) {
+    return res.json(pricesCache.data);
+  }
+
+  try {
+    const quotes = await yahooFinance.quote(PAIRS);
+    const prices: Record<string, number> = {};
+    
+    quotes.forEach((q: any) => {
+      let cleanSymbol = q.symbol.replace('=X', '');
+      if (q.symbol === 'NQ=F') cleanSymbol = 'NASDAQ';
+      if (q.regularMarketPrice) {
+        prices[cleanSymbol] = q.regularMarketPrice;
+      }
+    });
+
+    pricesCache = { data: prices, timestamp: Date.now() };
+    res.json(prices);
+  } catch (error) {
+    console.error('Failed to fetch prices:', error);
+    res.status(500).json({ error: 'Failed to fetch prices' });
+  }
+});
+
 /**
  * Calculates Smoothed Moving Average (SMMA)
  */
@@ -138,43 +166,65 @@ function checkNewsLock(pair: string, newsEvents: any[]) {
 
     const title = event.title.toLowerCase();
     
-    // Default rules for other high impact news
     let hoursBefore = 10;
     let hoursAfter = 6;
-    let affectsAllPairs = false;
+    let affectsPair = false;
 
-    // Apply specific user rules based on news title
-    if (title.includes('jobless claim') || title.includes('unemployment claim')) {
-      hoursBefore = 12;
-      hoursAfter = 6;
-    } else if (title.includes('jolt')) {
-      hoursBefore = 14;
-      hoursAfter = 8;
-    } else if (title.includes('core pce')) {
-      hoursBefore = 14;
-      hoursAfter = 8;
-      affectsAllPairs = true;
-    } else if (title.includes('fomc') || title.includes('federal funds rate') || title.includes('rate decision')) {
-      hoursBefore = 14;
-      hoursAfter = 8;
-      affectsAllPairs = true;
-    } else if (title.includes('cpi')) {
-      hoursBefore = 20;
-      hoursAfter = 8;
-      affectsAllPairs = true;
-    } else if (title.includes('non-farm') || title.includes('nfp') || title.includes('nonfarm') || title.includes('employment change')) {
-      hoursBefore = 26;
-      hoursAfter = 8;
-      affectsAllPairs = true;
+    // TIER 1: 24 Jam sebelum, 8 Jam sesudah (Semua USD + NASDAQ)
+    if (
+      title.includes('fomc') || title.includes('federal funds rate') || 
+      title.includes('nfp') || title.includes('non-farm') || title.includes('nonfarm') ||
+      (title.includes('cpi') && event.country === 'USD') ||
+      title.includes('core pce')
+    ) {
+      if (currenciesInPair.includes('USD') || isNasdaq) {
+        affectsPair = true;
+        hoursBefore = 24;
+        hoursAfter = 8;
+      }
+    }
+    // TIER 3: 14 Jam sebelum, 4 Jam sesudah
+    else if (
+      title.includes('jobless claim') || 
+      title.includes('retail sales') || 
+      (title.includes('ppi') && event.country === 'USD')
+    ) {
+      if (currenciesInPair.includes('USD') || isNasdaq) {
+        affectsPair = true;
+        hoursBefore = 14;
+        hoursAfter = 4;
+      }
+    } 
+    else if (title.includes('jolt') || title.includes('ism pmi')) {
+      if (['EURUSD', 'AUDUSD', 'GBPUSD', 'NASDAQ'].includes(pair)) {
+        affectsPair = true;
+        hoursBefore = 14;
+        hoursAfter = 4;
+      }
+    }
+    // TIER 2: 18 Jam sebelum, 6 Jam sesudah (Berita spesifik negara)
+    else if (
+      (title.includes('cpi') && ['AUD', 'GBP', 'EUR'].includes(event.country)) ||
+      (title.includes('employment') && event.country === 'AUD') ||
+      (title.includes('rate decision') && ['AUD', 'GBP', 'EUR'].includes(event.country)) ||
+      title.includes('rba') || title.includes('boe') || title.includes('ecb') || title.includes('official bank rate') || title.includes('main refinancing rate')
+    ) {
+      if (currenciesInPair.includes(event.country)) {
+        affectsPair = true;
+        hoursBefore = 18;
+        hoursAfter = 6;
+      }
+    }
+    // Default fallback
+    else {
+      if (currenciesInPair.includes(event.country)) {
+        affectsPair = true;
+        hoursBefore = 10; // default
+        hoursAfter = 6;
+      }
     }
 
-    // Specific rule for NASDAQ
-    if (isNasdaq && (currenciesInPair.includes(event.country) || (affectsAllPairs && event.country === 'USD'))) {
-      hoursBefore = 16;
-      hoursAfter = 8;
-    }
-
-    if (affectsAllPairs || currenciesInPair.includes(event.country)) {
+    if (affectsPair) {
       const eventTime = new Date(event.date).getTime();
       const lockStartTimeMs = eventTime - hoursBefore * 60 * 60 * 1000;
       const lockEndTimeMs = eventTime + hoursAfter * 60 * 60 * 1000;

@@ -12,6 +12,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
   const [timeframe, setTimeframe] = useState<Timeframe>('15m');
   const [data, setData] = useState<SignalData[]>([]);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -161,6 +162,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
       setLoading(false);
     }
   };
+
+  // Fetch live prices every 3 seconds
+  useEffect(() => {
+    const fetchLivePrices = async () => {
+      try {
+        const res = await fetch('/api/prices');
+        if (res.ok) {
+          const prices = await res.json();
+          setLivePrices(prices);
+        }
+      } catch (e) {
+        console.error('Failed to fetch live prices', e);
+      }
+    };
+    
+    fetchLivePrices();
+    const interval = setInterval(fetchLivePrices, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch immediately and set up polling
   useEffect(() => {
@@ -399,6 +419,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
                   key={pairData.pair} 
                   data={pairData} 
                   lotSize={calculateLotSize(pairData.pair)} 
+                  livePrice={livePrices[pairData.pair]}
                   onSetPriceAlert={(price: number) => handleSetPriceAlert(pairData.pair, price)}
                 />
               ))}
