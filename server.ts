@@ -116,34 +116,36 @@ const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 
 async function getHighImpactNews() {
   const now = Date.now();
-  if (now - newsLastFetched > 60 * 1000) { // 1 minute cache for real-time actuals
+  if (now - newsLastFetched > 5 * 60 * 1000) { // 5 minutes cache
+    newsLastFetched = now;
     try {
       const response = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
         }
       });
       if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('429'); // Silent throw for rate limit
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const text = await response.text();
       try {
         const data = JSON.parse(text);
-        
         cachedNews = data.filter((item: any) => item.impact === 'High');
-        
-        newsLastFetched = now;
       } catch (e) {
         throw new Error(`Failed to parse JSON: ${text.substring(0, 50)}...`);
       }
     } catch (e: any) {
-      if (cachedNews.length === 0) {
-          // Provide some mock high impact news to demonstrate the functionality
-          cachedNews = [
-              { title: "Federal Funds Rate", country: "USD", date: new Date(now + 2 * 60 * 60 * 1000).toISOString(), impact: "High" },
-              { title: "CPI m/m", country: "AUD", date: new Date(now - 2 * 60 * 60 * 1000).toISOString(), impact: "High" },
-              { title: "BOE Monetary Policy Report", country: "GBP", date: new Date(now + 24 * 60 * 60 * 1000).toISOString(), impact: "High" }
-          ];
+      if (e.message !== '429') {
+        console.error('Failed to fetch or parse news from ForexFactory:', e.message);
+      }
+      // Return existing cached news if available, otherwise return empty array
+      if (!cachedNews) {
+        cachedNews = [];
       }
     }
   }
