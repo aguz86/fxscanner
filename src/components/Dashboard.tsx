@@ -178,7 +178,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
     };
     
     fetchLivePrices();
-    const interval = setInterval(fetchLivePrices, 3000);
+    const interval = setInterval(fetchLivePrices, 1000);
     return () => clearInterval(interval);
   }, []);
 

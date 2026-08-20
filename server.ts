@@ -24,7 +24,7 @@ const PAIRS = [
 ];
 
 let pricesCache: { data: Record<string, number>, timestamp: number } | null = null;
-const PRICE_CACHE_DURATION = 3000; // 3 seconds
+const PRICE_CACHE_DURATION = 1000; // 1 second
 
 app.get('/api/prices', async (req, res) => {
   if (pricesCache && Date.now() - pricesCache.timestamp < PRICE_CACHE_DURATION) {
