@@ -8,8 +8,10 @@ interface ProfitCalculatorProps {
 
 export const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ currentRates = [] }) => {
   const PAIRS = [
-    'EURUSD', 'AUDUSD', 'GBPUSD', 'GBPAUD', 'EURAUD',
-    'EURCAD', 'AUDCAD', 'GBPCAD', 'USDCHF', 'GBPCHF', 'NASDAQ'
+    'EURUSD', 'AUDUSD', 'GBPUSD', 'NZDUSD',
+    'EURCAD', 'AUDCAD', 'GBPCAD', 'USDCHF', 'GBPCHF',
+    'EURJPY', 'AUDJPY',
+    'NASDAQ'
   ];
 
   const [rates, setRates] = useState<SignalData[]>(currentRates);

@@ -3,6 +3,7 @@ import { SignalData } from '../types';
 import { ArrowUp, ArrowDown, Minus, Lock, Clock, X, Bell } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { PAIR_INFO } from '../utils/pairInfo';
 
 export function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
@@ -62,7 +63,19 @@ export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize, livePrice
     const isJpy = data.pair.includes('JPY');
     const pointMultiplier = isJpy ? 0.001 : 0.00001;
     const slPoints = 650;
-    const tpPoints = 180;
+    
+    let tpPoints = PAIR_INFO[data.pair]?.tpPoints || 180;
+    
+    // Friday TP Logic
+    const wibTime = new Date(new Date().getTime() + (new Date().getTimezoneOffset() * 60000) + (3600000 * 7));
+    if (wibTime.getDay() === 5) {
+      if (wibTime.getHours() >= 7 && wibTime.getHours() < 18) {
+        tpPoints = 120;
+      } else if (wibTime.getHours() >= 18) {
+        tpPoints = 50;
+      }
+    }
+    
     const decimals = isJpy ? 3 : 5;
 
     const currentLotSize = lotSize || 0;
@@ -104,16 +117,26 @@ export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize, livePrice
       )}>
       <div>
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h3 className="text-xl font-bold tracking-tight text-white">{data.pair}</h3>
-            {lotSize !== undefined && lotSize > 0 && !isLocked && (
-              <span className="text-sm font-bold bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-full border border-indigo-500/30 shadow-sm">
-                {lotSize.toFixed(2)} Lot
-              </span>
-            )}
-            {isLocked && (
-              <div className="bg-amber-500/20 text-amber-500 p-1 rounded-md" title={data.lockReason || 'Locked due to news'}>
-                <Lock size={14} />
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold tracking-tight text-white">{data.pair}</h3>
+              {lotSize !== undefined && lotSize > 0 && (
+                <span className="text-sm font-bold bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-full border border-indigo-500/30 shadow-sm">
+                  {lotSize.toFixed(2)} Lot
+                </span>
+              )}
+              {isLocked && (
+                <div className="bg-amber-500/20 text-amber-500 p-1 rounded-md" title={data.lockReason || 'Locked due to news'}>
+                  <Lock size={14} />
+                </div>
+              )}
+            </div>
+            {PAIR_INFO[data.pair] && (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] tracking-widest">{PAIR_INFO[data.pair].stars}</span>
+                <span className="text-[10px] text-neutral-400 font-semibold uppercase px-1.5 py-0.5 rounded border border-neutral-700 bg-neutral-800/50">
+                  {PAIR_INFO[data.pair].note}
+                </span>
               </div>
             )}
           </div>

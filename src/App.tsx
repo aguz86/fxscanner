@@ -9,6 +9,9 @@ import { ProfitCalculator } from './components/ProfitCalculator';
 import { Calendar as CalendarTab } from './components/Calendar';
 import { Rules as RulesTab } from './components/Rules';
 import { Activity, Calculator, LogOut, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
+import { getMaintenanceState, getFridayNotifState } from './utils/maintenance';
+import { MaintenanceScreen } from './components/MaintenanceScreen';
+import { FridayNotif } from './components/FridayNotif';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -17,6 +20,23 @@ export default function App() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [activeTab, setActiveTab] = useState<'scanner' | 'calculator' | 'calendar' | 'rules'>('scanner');
   const [metaquotesId, setMetaquotesId] = useState('2EB3A8DA');
+  
+  const [maintenance, setMaintenance] = useState<{ isMaintenance: boolean; targetTimeLocal: Date | null }>({
+    isMaintenance: false,
+    targetTimeLocal: null
+  });
+  const [isFridayNotif, setIsFridayNotif] = useState(false);
+
+  useEffect(() => {
+    setMaintenance(getMaintenanceState());
+    setIsFridayNotif(getFridayNotifState());
+
+    const interval = setInterval(() => {
+      setMaintenance(getMaintenanceState());
+      setIsFridayNotif(getFridayNotifState());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -57,6 +77,10 @@ export default function App() {
     setIsLoggedIn(false);
     setUsername('');
   };
+
+  if (maintenance.isMaintenance && maintenance.targetTimeLocal) {
+    return <MaintenanceScreen targetTime={maintenance.targetTimeLocal} />;
+  }
 
   if (isCheckingAuth) {
     return (
@@ -205,6 +229,8 @@ export default function App() {
         {activeTab === 'calendar' && <CalendarTab />}
         {activeTab === 'rules' && <RulesTab />}
       </div>
+      
+      {isFridayNotif && <FridayNotif />}
     </main>
   );
 }

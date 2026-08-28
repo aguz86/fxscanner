@@ -22,8 +22,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
   // Risk Management State
   const [balance, setBalance] = useState<number>(1000);
   const [riskPercent, setRiskPercent] = useState<number>(2.5);
-  const [tpPoints, setTpPoints] = useState<number>(180);
-  const [slPoints, setSlPoints] = useState<number>(650);
+  const [tpPoints, setTpPoints] = useState<number>(0);
+  const [slPoints, setSlPoints] = useState<number>(850);
   
   // Notification State
   const [priceAlerts, setPriceAlerts] = useState<Record<string, number>>({});
@@ -211,28 +211,54 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
 
   const calculateLotSize = (pair: string) => {
     const riskUsd = balance * (riskPercent / 100);
-    let lossPerLotUsd = slPoints;
-
     const getPrice = (p: string) => data.find(d => d.pair === p)?.close || 0;
 
-    if (pair.endsWith('USD')) {
-      lossPerLotUsd = slPoints;
-    } else if (pair.endsWith('AUD')) {
-      const audusd = getPrice('AUDUSD');
-      if (audusd) lossPerLotUsd = slPoints * audusd;
-    } else if (pair.endsWith('CAD')) {
-      const audcad = getPrice('AUDCAD');
-      const audusd = getPrice('AUDUSD');
-      if (audcad && audusd) {
-        const usdcad = audcad / audusd;
-        lossPerLotUsd = slPoints / usdcad;
-      }
-    } else if (pair.endsWith('CHF')) {
-      const usdchf = getPrice('USDCHF');
-      if (usdchf) lossPerLotUsd = slPoints / usdchf;
+    // Default 1 point = $1
+    if (pair === 'NASDAQ' || pair === 'US30' || pair === 'XAUUSD') {
+      const lossPerLotUsd = slPoints * 1;
+      return riskUsd / lossPerLotUsd;
     }
 
-    if (!lossPerLotUsd) return 0;
+    const quoteCurrency = pair.substring(3, 6);
+    const pointValueInQuote = quoteCurrency === 'JPY' ? 100 : 1;
+    const lossInQuote = slPoints * pointValueInQuote;
+    
+    let lossPerLotUsd = lossInQuote; // Fallback to raw points if conversion fails
+    
+    if (quoteCurrency === 'USD') {
+      lossPerLotUsd = lossInQuote;
+    } else {
+      let usdQuote = getPrice(`USD${quoteCurrency}`); 
+      if (!usdQuote) {
+        // Derive USDQuote from EUR, AUD, or GBP crosses if direct quote not found
+        const eurQuote = getPrice(`EUR${quoteCurrency}`);
+        const eurUsd = getPrice('EURUSD');
+        if (eurQuote && eurUsd) {
+          usdQuote = eurQuote / eurUsd;
+        } else {
+          const audQuote = getPrice(`AUD${quoteCurrency}`);
+          const audUsd = getPrice('AUDUSD');
+          if (audQuote && audUsd) {
+            usdQuote = audQuote / audUsd;
+          } else {
+             const gbpQuote = getPrice(`GBP${quoteCurrency}`);
+             const gbpUsd = getPrice('GBPUSD');
+             if (gbpQuote && gbpUsd) {
+               usdQuote = gbpQuote / gbpUsd;
+             }
+          }
+        }
+      }
+      
+      if (usdQuote) {
+        lossPerLotUsd = lossInQuote / usdQuote;
+      } else if (quoteCurrency === 'CHF') {
+          // If we couldn't derive USDCHF, try to invert it if we have it? 
+          // Wait, getPrice('USDCHF') is already tried above.
+      }
+    }
+
+    if (!lossPerLotUsd || lossPerLotUsd <= 0) return 0;
     return riskUsd / lossPerLotUsd;
   };
 
@@ -251,7 +277,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
             </div>
             <p className="text-neutral-400 max-w-xl leading-relaxed">
               Real-time Stochastic Oscillator (8,3,3) scanner across major pairs. 
-              Close/Close prices smoothed. Buy at ≤ 5, Sell at ≥ 95.
+              Close/Close prices smoothed. <span className="bg-yellow-400 text-black font-bold px-1 rounded">Buy at ≤ {timeframe === '4h' ? 1 : timeframe === '1h' ? 3 : 5}, Sell at ≥ {timeframe === '4h' ? 99 : timeframe === '1h' ? 97 : 95}.</span>
               <br />
               <span className="text-xs text-neutral-500">*Note: Price data is sourced from Yahoo Finance due to TradingView API limitations.</span>
             </p>

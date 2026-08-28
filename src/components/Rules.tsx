@@ -80,12 +80,12 @@ export function Rules() {
               <ul className="space-y-2 list-disc pl-5">
                 <li><strong>Parameter Stochastic:</strong> %K = 8, %D = 3, Slowing = 3</li>
                 <li>
-                  <span className="text-green-400 font-semibold">Sinyal Buy (Strong Buy):</span> 
-                  <br />Memicu sinyal beli ketika nilai %K atau %D berada di level <strong>5 atau lebih rendah</strong>.
-                </li>
-                <li>
-                  <span className="text-red-400 font-semibold">Sinyal Sell (Strong Sell):</span> 
-                  <br />Memicu sinyal jual ketika nilai %K atau %D berada di level <strong>95 atau lebih tinggi</strong>.
+                  <strong>Treshold Berdasarkan Timeframe:</strong><br />
+                  <ul className="list-circle pl-5 mt-1 space-y-1">
+                    <li><span className="text-white font-medium">M15:</span> Buy &le; 5, Sell &ge; 95</li>
+                    <li><span className="text-white font-medium">H1:</span> Buy &le; 3, Sell &ge; 97</li>
+                    <li><span className="text-white font-medium">H4:</span> Buy &le; 1, Sell &ge; 99</li>
+                  </ul>
                 </li>
               </ul>
               <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
@@ -157,6 +157,27 @@ export function Rules() {
                     <td className="py-3 px-6">{getSchedule(['core pce']).hari}</td>
                     <td className="py-3 px-6 font-semibold text-red-400">Semua pair USD + NASDAQ</td>
                   </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">5</td>
+                    <td className="py-3 px-6 font-medium text-white">Jackson Hole Symposium</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['jackson hole']).jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['jackson hole']).hari}</td>
+                    <td className="py-3 px-6 font-semibold text-red-400">Semua pair USD + NASDAQ</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">6</td>
+                    <td className="py-3 px-6 font-medium text-white">Fed Chairman Warsh Speaks</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['warsh speaks', 'fed chairman warsh']).jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['warsh speaks', 'fed chairman warsh']).hari}</td>
+                    <td className="py-3 px-6 font-semibold text-red-400">Semua pair USD + NASDAQ</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">7</td>
+                    <td className="py-3 px-6 font-medium text-white">Prelim Benchmark Payrolls Revision</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['payrolls revision', 'benchmark payrolls']).jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['payrolls revision', 'benchmark payrolls']).hari}</td>
+                    <td className="py-3 px-6 font-semibold text-red-400">Semua pair USD + NASDAQ</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -181,46 +202,46 @@ export function Rules() {
                 </thead>
                 <tbody className="divide-y divide-neutral-800 text-neutral-300">
                   <tr className="hover:bg-neutral-800/50">
-                    <td className="py-3 px-6">5</td>
+                    <td className="py-3 px-6">8</td>
                     <td className="py-3 px-6 font-medium text-white">CPI AUD + Employment AUD</td>
                     <td className="py-3 px-6 text-neutral-400">{getSchedule(['cpi', 'employment'], 'AUD').jam}</td>
                     <td className="py-3 px-6">{getSchedule(['cpi', 'employment'], 'AUD').hari}</td>
-                    <td className="py-3 px-6 font-semibold text-amber-400">AUDUSD, AUDCAD, EURAUD, GBPAUD</td>
-                  </tr>
-                  <tr className="hover:bg-neutral-800/50">
-                    <td className="py-3 px-6">6</td>
-                    <td className="py-3 px-6 font-medium text-white">RBA Rate Decision</td>
-                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['rba', 'official bank rate'], 'AUD').jam}</td>
-                    <td className="py-3 px-6">{getSchedule(['rba', 'official bank rate'], 'AUD').hari}</td>
-                    <td className="py-3 px-6 font-semibold text-amber-400">AUDUSD, AUDCAD, EURAUD, GBPAUD</td>
-                  </tr>
-                  <tr className="hover:bg-neutral-800/50">
-                    <td className="py-3 px-6">7</td>
-                    <td className="py-3 px-6 font-medium text-white">CPI GBP</td>
-                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['cpi'], 'GBP').jam}</td>
-                    <td className="py-3 px-6">{getSchedule(['cpi'], 'GBP').hari}</td>
-                    <td className="py-3 px-6 font-semibold text-amber-400">GBPUSD, GBPCAD, GBPCHF, GBPAUD, EURUSD</td>
-                  </tr>
-                  <tr className="hover:bg-neutral-800/50">
-                    <td className="py-3 px-6">8</td>
-                    <td className="py-3 px-6 font-medium text-white">BoE Rate Decision</td>
-                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['boe', 'official bank rate'], 'GBP').jam}</td>
-                    <td className="py-3 px-6">{getSchedule(['boe', 'official bank rate'], 'GBP').hari}</td>
-                    <td className="py-3 px-6 font-semibold text-amber-400">GBPUSD, GBPCAD, GBPCHF, GBPAUD</td>
+                    <td className="py-3 px-6 font-semibold text-amber-400">AUDUSD, AUDCAD</td>
                   </tr>
                   <tr className="hover:bg-neutral-800/50">
                     <td className="py-3 px-6">9</td>
-                    <td className="py-3 px-6 font-medium text-white">CPI EUR</td>
-                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['cpi'], 'EUR').jam}</td>
-                    <td className="py-3 px-6">{getSchedule(['cpi'], 'EUR').hari}</td>
-                    <td className="py-3 px-6 font-semibold text-amber-400">EURUSD, EURCAD, EURAUD</td>
+                    <td className="py-3 px-6 font-medium text-white">RBA Rate Decision</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['rba', 'official bank rate'], 'AUD').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['rba', 'official bank rate'], 'AUD').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-amber-400">AUDUSD, AUDCAD</td>
                   </tr>
                   <tr className="hover:bg-neutral-800/50">
                     <td className="py-3 px-6">10</td>
+                    <td className="py-3 px-6 font-medium text-white">CPI GBP</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['cpi'], 'GBP').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['cpi'], 'GBP').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-amber-400">GBPUSD, GBPCAD, GBPCHF, EURUSD</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">11</td>
+                    <td className="py-3 px-6 font-medium text-white">BoE Rate Decision</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['boe', 'official bank rate'], 'GBP').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['boe', 'official bank rate'], 'GBP').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-amber-400">GBPUSD, GBPCAD, GBPCHF</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">12</td>
+                    <td className="py-3 px-6 font-medium text-white">CPI EUR</td>
+                    <td className="py-3 px-6 text-neutral-400">{getSchedule(['cpi'], 'EUR').jam}</td>
+                    <td className="py-3 px-6">{getSchedule(['cpi'], 'EUR').hari}</td>
+                    <td className="py-3 px-6 font-semibold text-amber-400">EURUSD, EURCAD</td>
+                  </tr>
+                  <tr className="hover:bg-neutral-800/50">
+                    <td className="py-3 px-6">13</td>
                     <td className="py-3 px-6 font-medium text-white">ECB Rate Decision</td>
                     <td className="py-3 px-6 text-neutral-400">{getSchedule(['ecb', 'main refinancing rate'], 'EUR').jam}</td>
                     <td className="py-3 px-6">{getSchedule(['ecb', 'main refinancing rate'], 'EUR').hari}</td>
-                    <td className="py-3 px-6 font-semibold text-amber-400">EURUSD, EURCAD, EURAUD</td>
+                    <td className="py-3 px-6 font-semibold text-amber-400">EURUSD, EURCAD</td>
                   </tr>
                 </tbody>
               </table>
@@ -246,41 +267,39 @@ export function Rules() {
                 </thead>
                 <tbody className="divide-y divide-neutral-800 text-neutral-300">
                   <tr className="hover:bg-neutral-800/50">
-                    <td className="py-3 px-6">11</td>
+                    <td className="py-3 px-6">14</td>
                     <td className="py-3 px-6 font-medium text-white">
                       Initial Jobless Claims
-                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">Baru</span>
                     </td>
                     <td className="py-3 px-6 text-neutral-400">{getSchedule(['jobless claim', 'unemployment claim']).jam}</td>
                     <td className="py-3 px-6">{getSchedule(['jobless claim', 'unemployment claim']).hari}</td>
                     <td className="py-3 px-6 font-semibold text-blue-400">Semua pair USD + NASDAQ</td>
                   </tr>
                   <tr className="hover:bg-neutral-800/50">
-                    <td className="py-3 px-6">12</td>
+                    <td className="py-3 px-6">15</td>
                     <td className="py-3 px-6 font-medium text-white">
                       JOLTs Job Openings
-                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">Baru</span>
                     </td>
                     <td className="py-3 px-6 text-neutral-400">{getSchedule(['jolt']).jam}</td>
                     <td className="py-3 px-6">{getSchedule(['jolt']).hari}</td>
                     <td className="py-3 px-6 font-semibold text-blue-400">EURUSD, AUDUSD, GBPUSD, NASDAQ</td>
                   </tr>
                   <tr className="hover:bg-neutral-800/50">
-                    <td className="py-3 px-6">13</td>
+                    <td className="py-3 px-6">16</td>
                     <td className="py-3 px-6 font-medium text-white">Retail Sales AS</td>
                     <td className="py-3 px-6 text-neutral-400">{getSchedule(['retail sales'], 'USD').jam}</td>
                     <td className="py-3 px-6">{getSchedule(['retail sales'], 'USD').hari}</td>
                     <td className="py-3 px-6 font-semibold text-blue-400">Semua pair USD + NASDAQ</td>
                   </tr>
                   <tr className="hover:bg-neutral-800/50">
-                    <td className="py-3 px-6">14</td>
+                    <td className="py-3 px-6">17</td>
                     <td className="py-3 px-6 font-medium text-white">PPI AS</td>
                     <td className="py-3 px-6 text-neutral-400">{getSchedule(['ppi'], 'USD').jam}</td>
                     <td className="py-3 px-6">{getSchedule(['ppi'], 'USD').hari}</td>
                     <td className="py-3 px-6 font-semibold text-blue-400">Semua pair USD + NASDAQ</td>
                   </tr>
                   <tr className="hover:bg-neutral-800/50">
-                    <td className="py-3 px-6">15</td>
+                    <td className="py-3 px-6">18</td>
                     <td className="py-3 px-6 font-medium text-white">ISM PMI AS</td>
                     <td className="py-3 px-6 text-neutral-400">{getSchedule(['ism pmi'], 'USD').jam}</td>
                     <td className="py-3 px-6">{getSchedule(['ism pmi'], 'USD').hari}</td>

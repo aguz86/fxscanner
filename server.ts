@@ -18,8 +18,9 @@ app.use(cors());
 
 // List of target pairs
 const PAIRS = [
-  'EURUSD=X', 'AUDUSD=X', 'GBPUSD=X', 'GBPAUD=X', 'EURAUD=X',
+  'EURUSD=X', 'AUDUSD=X', 'GBPUSD=X', 'NZDUSD=X',
   'EURCAD=X', 'AUDCAD=X', 'GBPCAD=X', 'USDCHF=X', 'GBPCHF=X',
+  'EURJPY=X', 'AUDJPY=X',
   'NQ=F'
 ];
 
@@ -177,7 +178,10 @@ function checkNewsLock(pair: string, newsEvents: any[]) {
       title.includes('fomc') || title.includes('federal funds rate') || 
       title.includes('nfp') || title.includes('non-farm') || title.includes('nonfarm') ||
       (title.includes('cpi') && event.country === 'USD') ||
-      title.includes('core pce')
+      title.includes('core pce') ||
+      title.includes('jackson hole') ||
+      title.includes('warsh speaks') ||
+      title.includes('payrolls revision')
     ) {
       if (currenciesInPair.includes('USD') || isNasdaq) {
         affectsPair = true;
@@ -316,11 +320,21 @@ async function startServer() {
           if (!stoch) return null;
           
           let signal = 'neutral';
-          // User rule: Level 5 is buy indication, 95 is sell indication
+          
+          let overbought = 95;
+          let oversold = 5;
+          if (timeframe === '1h') {
+            overbought = 97;
+            oversold = 3;
+          } else if (timeframe === '4h') {
+            overbought = 99;
+            oversold = 1;
+          }
+
           // Only send signal if not locked by news
           if (!newsLock.locked) {
-            if (stoch.k <= 5 || stoch.d <= 5) signal = 'buy';
-            else if (stoch.k >= 95 || stoch.d >= 95) signal = 'sell';
+            if (stoch.k <= oversold || stoch.d <= oversold) signal = 'buy';
+            else if (stoch.k >= overbought || stoch.d >= overbought) signal = 'sell';
           }
 
           return {
