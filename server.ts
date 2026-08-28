@@ -3,6 +3,7 @@ import path from 'path';
 import cors from 'cors';
 import yahooFinancePkg from 'yahoo-finance2';
 import { createServer as createViteServer } from 'vite';
+import { XMLParser } from 'fast-xml-parser';
 
 const YFClass = (yahooFinancePkg as any).default || yahooFinancePkg;
 const yahooFinance = new YFClass();
@@ -25,7 +26,7 @@ const PAIRS = [
 ];
 
 let pricesCache: { data: Record<string, number>, timestamp: number } | null = null;
-const PRICE_CACHE_DURATION = 1000; // 1 second
+const PRICE_CACHE_DURATION = 10000; // 10 seconds
 
 app.get('/api/prices', async (req, res) => {
   if (pricesCache && Date.now() - pricesCache.timestamp < PRICE_CACHE_DURATION) {
@@ -46,8 +47,12 @@ app.get('/api/prices', async (req, res) => {
 
     pricesCache = { data: prices, timestamp: Date.now() };
     res.json(prices);
-  } catch (error) {
-    console.error('Failed to fetch prices:', error);
+  } catch (error: any) {
+    console.error('Failed to fetch prices:', error.message || error);
+    // Fallback to old cache if Yahoo rate limits us
+    if (pricesCache) {
+      return res.json(pricesCache.data);
+    }
     res.status(500).json({ error: 'Failed to fetch prices' });
   }
 });
@@ -115,35 +120,78 @@ let newsLastFetched = 0;
 const signalCache: Record<string, { data: any, timestamp: number }> = {};
 const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 
+const countryCurrencyMap: Record<string, string> = {
+  'United States': 'USD',
+  'Canada': 'CAD',
+  'Euro Area': 'EUR',
+  'Germany': 'EUR',
+  'France': 'EUR',
+  'Spain': 'EUR',
+  'Italy': 'EUR',
+  'United Kingdom': 'GBP',
+  'Japan': 'JPY',
+  'Australia': 'AUD',
+  'New Zealand': 'NZD',
+  'Switzerland': 'CHF',
+  'China': 'CNY',
+};
+
 async function getHighImpactNews() {
   const now = Date.now();
   if (now - newsLastFetched > 5 * 60 * 1000) { // 5 minutes cache
     newsLastFetched = now;
     try {
-      const response = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
-        headers: {
-          'Accept': 'application/json, text/plain, */*',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
-        }
+      const response = await fetch('https://www.myfxbook.com/rss/forex-economic-calendar-events', {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
       });
       if (!response.ok) {
-        if (response.status === 429) {
-          throw new Error('429'); // Silent throw for rate limit
-        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const text = await response.text();
-      try {
-        const data = JSON.parse(text);
-        cachedNews = data.filter((item: any) => item.impact === 'High');
-      } catch (e) {
-        throw new Error(`Failed to parse JSON: ${text.substring(0, 50)}...`);
+      const parser = new XMLParser();
+      const parsed = parser.parse(text);
+      const items = parsed?.rss?.channel?.item;
+      
+      if (items && Array.isArray(items)) {
+        const formattedNews = items.map((item: any) => {
+          let desc = item.description.replace(/&#60;/g, '<').replace(/&#62;/g, '>').replace(/&#39;/g, "'").replace(/&#34;/g, '"');
+          const tdRegex = /<td[^>]*>(.*?)<\/td>/gs;
+          const tds = [...desc.matchAll(tdRegex)].map(m => m[1].trim());
+          
+          let impact = "Low";
+          if (desc.includes('sprite-high-impact')) impact = "High";
+          else if (desc.includes('sprite-medium-impact')) impact = "Medium";
+          
+          let previous = "", forecast = "", actual = "";
+          if (tds.length >= 5) {
+            previous = tds[2].replace(/<\/?[^>]+(>|$)/g, "").trim();
+            forecast = tds[3].replace(/<\/?[^>]+(>|$)/g, "").trim();
+            actual = tds[4].replace(/<\/?[^>]+(>|$)/g, "").trim();
+          }
+          
+          let country = 'USD'; // default
+          for (const [cName, curr] of Object.entries(countryCurrencyMap)) {
+            if (item.title.startsWith(cName)) {
+              country = curr;
+              break;
+            }
+          }
+          
+          return {
+            title: item.title,
+            country,
+            date: new Date(item.pubDate).toISOString(),
+            impact,
+            forecast,
+            previous,
+            actual: actual === "" ? undefined : actual
+          };
+        });
+        
+        cachedNews = formattedNews.filter(n => n.impact === 'High');
       }
     } catch (e: any) {
-      if (e.message !== '429') {
-        console.error('Failed to fetch or parse news from ForexFactory:', e.message);
-      }
+      console.error('Failed to fetch or parse news from MyFxBook:', e.message);
       // Return existing cached news if available, otherwise return empty array
       if (!cachedNews) {
         cachedNews = [];

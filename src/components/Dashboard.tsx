@@ -163,7 +163,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
     }
   };
 
-  // Fetch live prices every 3 seconds
+  // Fetch live prices every 10 seconds
   useEffect(() => {
     const fetchLivePrices = async () => {
       try {
@@ -178,7 +178,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
     };
     
     fetchLivePrices();
-    const interval = setInterval(fetchLivePrices, 1000);
+    const interval = setInterval(fetchLivePrices, 10000);
     return () => clearInterval(interval);
   }, []);
 
