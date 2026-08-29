@@ -1,7 +1,7 @@
 export function getWIBDate() {
   const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  return new Date(utc + (3600000 * 7));
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utc + 3600000 * 7);
 }
 
 export function getMaintenanceState() {
@@ -9,8 +9,8 @@ export function getMaintenanceState() {
   const day = wibTime.getDay();
   const hours = wibTime.getHours();
   const mins = wibTime.getMinutes();
-  const timeVal = hours + (mins / 60);
-  
+  const timeVal = hours + mins / 60;
+
   let isMaintenance = false;
   let targetTimeWIB = new Date(wibTime);
 
@@ -18,21 +18,15 @@ export function getMaintenanceState() {
   if (day === 1 && timeVal < 7.25) {
     isMaintenance = true;
     targetTimeWIB.setHours(7, 15, 0, 0);
-  } 
-  // Jumat (5) - full active until 23:59, so no maintenance on Friday evening.
-  // We rely on the Sabtu rule which will trigger exactly at 00:00 Saturday.
-  
-  // Sabtu (6) sebelum jam 06:00
-  if (day === 6 && timeVal < 6) {
-    isMaintenance = true;
-    targetTimeWIB.setHours(6, 0, 0, 0);
   }
+  // Weekend / Sabtu-Minggu sekarang tidak ada maintenance agar selalu bisa diakses
 
   // Convert targetTimeWIB back to true Local Date for countdown purposes
   let targetTimeLocal: Date | null = null;
   if (isMaintenance) {
     const localOffset = targetTimeWIB.getTimezoneOffset() * 60000;
-    const trueTargetTimestamp = targetTimeWIB.getTime() - localOffset - (3600000 * 7);
+    const trueTargetTimestamp =
+      targetTimeWIB.getTime() - localOffset - 3600000 * 7;
     targetTimeLocal = new Date(trueTargetTimestamp);
   }
 
@@ -49,3 +43,19 @@ export function getFridayNotifState() {
   }
   return false;
 }
+
+export function getFakeSignalWarningState() {
+  const wibTime = getWIBDate();
+  const day = wibTime.getDay();
+  const hours = wibTime.getHours();
+
+  // Senin (1) sampai Jumat (5)
+  if (day >= 1 && day <= 5) {
+    // 21:00 - 23:59 (hours >= 21) OR 00:00 - 07:00 (hours < 7)
+    if (hours >= 21 || hours < 7) {
+      return true;
+    }
+  }
+  return false;
+}
+

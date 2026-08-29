@@ -4,6 +4,7 @@ import { SignalCard } from './SignalCard';
 import { Activity, Bell, BellOff, RefreshCw, AlertTriangle, Info, ArrowDown, ArrowUp, Download } from 'lucide-react';
 import { cn } from './SignalCard';
 import { format } from 'date-fns';
+import { FakeSignalWarning } from './FakeSignalWarning';
 
 interface DashboardProps {
   metaquotesId?: string;
@@ -264,6 +265,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white selection:bg-indigo-500/30 font-sans p-6 md:p-8 lg:p-12">
+      <FakeSignalWarning />
       <div className="max-w-7xl mx-auto space-y-10">
         
         {/* Header Section */}
