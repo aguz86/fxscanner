@@ -120,6 +120,60 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
       }
       
       const results: SignalData[] = await response.json();
+
+      results.forEach(pair => {
+         if (pair.signal !== 'neutral') {
+            if (pair.signal === 'buy') {
+              pair.pendingMessage = `Ada sinyal BUY di pair ${pair.pair}. Logika: Harga turun dulu ke support, lalu naik breakout. Pasang BUY STOP di harga saat ini. TP1 +90 poin. Pasang BUY LIMIT 10 poin di atas TP1, dengan target TP2 +200 poin. SL 850 poin.`;
+            } else {
+              pair.pendingMessage = `Ada sinyal SELL di pair ${pair.pair}. Logika: Harga naik dulu ke resistance, lalu turun breakdown. Pasang SELL STOP di harga saat ini. TP1 -90 poin. Pasang SELL LIMIT 10 poin di bawah TP1, dengan target TP2 -200 poin. SL 850 poin.`;
+            }
+         }
+      });
+
+      
+      if (timeframe === '15m') {
+        try {
+          const [res30, res1h, res4h] = await Promise.all([
+            fetch('/api/signals?timeframe=30m').then(r => r.json()),
+            fetch('/api/signals?timeframe=1h').then(r => r.json()),
+            fetch('/api/signals?timeframe=4h').then(r => r.json())
+          ]);
+          
+          const now = Date.now();
+          const storedPendingStr = localStorage.getItem('pendingOrders');
+          let pendingOrders: Record<string, number> = storedPendingStr ? JSON.parse(storedPendingStr) : {};
+          
+          // Cleanup expired pending orders (120 minutes = 120 * 60 * 1000)
+          Object.keys(pendingOrders).forEach(key => {
+            if (now - pendingOrders[key] > 120 * 60 * 1000) {
+              delete pendingOrders[key];
+            }
+          });
+
+          results.forEach(pair => {
+            if (pair.signal !== 'neutral') {
+               const s30 = res30.find((r: any) => r.pair === pair.pair)?.signal || 'neutral';
+               const s1h = res1h.find((r: any) => r.pair === pair.pair)?.signal || 'neutral';
+               const s4h = res4h.find((r: any) => r.pair === pair.pair)?.signal || 'neutral';
+               
+               if (s30 !== pair.signal || s1h !== pair.signal || s4h !== pair.signal) {
+                  const key = `${pair.pair}-${pair.signal}`;
+                  if (!pendingOrders[key]) {
+                     pendingOrders[key] = now;
+                  }
+               } else {
+                  const key = `${pair.pair}-${pair.signal}`;
+                  delete pendingOrders[key];
+               }
+            }
+          });
+          localStorage.setItem('pendingOrders', JSON.stringify(pendingOrders));
+        } catch (e) {
+          console.error("Failed to fetch higher TFs", e);
+        }
+      }
+
       setData(results);
       setLastUpdated(new Date());
 
@@ -170,8 +224,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
       try {
         const res = await fetch('/api/prices');
         if (res.ok) {
-          const prices = await res.json();
-          setLivePrices(prices);
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const prices = await res.json();
+            setLivePrices(prices);
+          } else {
+            console.warn('API /prices returned non-JSON:', await res.text().then(t => t.substring(0, 100)));
+          }
         }
       } catch (e) {
         console.error('Failed to fetch live prices', e);
@@ -279,7 +338,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
             </div>
             <p className="text-neutral-400 max-w-xl leading-relaxed">
               Real-time Stochastic Oscillator (8,3,3) scanner across major pairs. 
-              Close/Close prices smoothed. <span className="bg-yellow-400 text-black font-bold px-1 rounded">Buy at ≤ {timeframe === '4h' ? 1 : timeframe === '1h' ? 3 : 5}, Sell at ≥ {timeframe === '4h' ? 99 : timeframe === '1h' ? 97 : 95}.</span>
+              Close/Close prices smoothed. <span className="bg-yellow-400 text-black font-bold px-1 rounded">Buy at ≤ {timeframe === '4h' ? 2 : timeframe === '1h' ? 3 : timeframe === '30m' ? 4 : 5}, Sell at ≥ {timeframe === '4h' ? 98 : timeframe === '1h' ? 97 : timeframe === '30m' ? 96 : 95}.</span>
               <br />
               <span className="text-xs text-neutral-500">*Note: Price data is sourced from Yahoo Finance due to TradingView API limitations.</span>
             </p>
@@ -287,7 +346,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ metaquotesId }) => {
 
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2 bg-neutral-900/80 p-1.5 rounded-xl border border-neutral-800 backdrop-blur-sm self-start md:self-end">
-              {(['15m', '1h', '4h'] as Timeframe[]).map((tf) => (
+              {(['15m', '30m', '1h', '4h'] as Timeframe[]).map((tf) => (
                 <button
                   key={tf}
                   onClick={() => setTimeframe(tf)}

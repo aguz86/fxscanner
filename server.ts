@@ -78,6 +78,22 @@ function calculateSMMA(data: number[], period: number): number[] {
   return smma;
 }
 
+function calculateATR(quotes: any[], period: number): number {
+  if (quotes.length < period + 1) return 0;
+  const trs = [];
+  for (let i = 1; i < quotes.length; i++) {
+    const high = quotes[i].high;
+    const low = quotes[i].low;
+    const prevClose = quotes[i-1].close;
+    if (high == null || low == null || prevClose == null) continue;
+    const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+    trs.push(tr);
+  }
+  if (trs.length < period) return 0;
+  const recentTrs = trs.slice(-period);
+  return recentTrs.reduce((a, b) => a + b, 0) / period;
+}
+
 /**
  * Calculates Stochastic Oscillator with Custom Parameters
  * %K period = 8, %D period = 3, Slowing = 3
@@ -169,7 +185,7 @@ async function getHighImpactNews() {
             actual = tds[4].replace(/<\/?[^>]+(>|$)/g, "").trim();
           }
           
-          let country = 'USD'; // default
+          let country: string | null = null;
           for (const [cName, curr] of Object.entries(countryCurrencyMap)) {
             if (item.title.startsWith(cName)) {
               country = curr;
@@ -177,6 +193,8 @@ async function getHighImpactNews() {
             }
           }
           
+          if (!country) return null;
+
           return {
             title: item.title,
             country,
@@ -186,9 +204,9 @@ async function getHighImpactNews() {
             previous,
             actual: actual === "" ? undefined : actual
           };
-        });
+        }).filter(Boolean);
         
-        cachedNews = formattedNews.filter(n => n.impact === 'High');
+        cachedNews = formattedNews.filter((n: any) => n.impact === 'High');
       }
     } catch (e: any) {
       console.error('Failed to fetch or parse news from MyFxBook:', e.message);
@@ -275,6 +293,10 @@ function checkNewsLock(pair: string, newsEvents: any[]) {
         affectsPair = true;
         hoursBefore = 10; // default
         hoursAfter = 6;
+      } else if (event.country === 'CNY' && (currenciesInPair.includes('JPY') || currenciesInPair.includes('AUD') || currenciesInPair.includes('NZD'))) {
+        affectsPair = true;
+        hoursBefore = 10; // default
+        hoursAfter = 6;
       }
     }
 
@@ -325,8 +347,9 @@ async function startServer() {
     }
     
     // Map to yahoo-finance intervals
-    let interval: '15m' | '60m' = '15m';
+    let interval: '15m' | '30m' | '60m' = '15m';
     let isH4 = false;
+    if (timeframe === '30m') interval = '30m';
     if (timeframe === '1h') interval = '60m';
     if (timeframe === '4h') {
       interval = '60m';
@@ -353,6 +376,15 @@ async function startServer() {
 
           if (!result || !result.quotes || result.quotes.length === 0) return null;
 
+          const quotesClean = result.quotes.filter((q: any) => q.high != null && q.low != null && q.close != null);
+          const atr14 = calculateATR(quotesClean, 14);
+          const atr50 = calculateATR(quotesClean, 50);
+          const isVolatile = atr14 > atr50; // Simple check if current ATR is above average ATR
+          
+          // ATR Filter: only take signal if current ATR 14 is > 0.8 * previous ATR 14
+          const prevAtr14 = calculateATR(quotesClean.slice(0, -1), 14);
+          const hasSufficientVolatility = atr14 > (0.8 * prevAtr14);
+
           let closes = result.quotes.map((r: any) => r.close).filter((c: number | null) => c !== null) as number[];
 
           if (isH4) {
@@ -371,16 +403,19 @@ async function startServer() {
           
           let overbought = 95;
           let oversold = 5;
-          if (timeframe === '1h') {
+          if (timeframe === '30m') {
+            overbought = 96;
+            oversold = 4;
+          } else if (timeframe === '1h') {
             overbought = 97;
             oversold = 3;
           } else if (timeframe === '4h') {
-            overbought = 99;
-            oversold = 1;
+            overbought = 98;
+            oversold = 2;
           }
 
-          // Only send signal if not locked by news
-          if (!newsLock.locked) {
+          // Only send signal if not locked by news AND passes ATR volatility filter
+          if (!newsLock.locked && hasSufficientVolatility) {
             if (stoch.k <= oversold || stoch.d <= oversold) signal = 'buy';
             else if (stoch.k >= overbought || stoch.d >= overbought) signal = 'sell';
           }
@@ -395,7 +430,8 @@ async function startServer() {
             lockReason: newsLock.reason,
             lockEndTime: newsLock.lockEndTime,
             nextNewsTime: newsLock.nextNewsTime,
-            nextNewsTitle: newsLock.nextNewsTitle
+            nextNewsTitle: newsLock.nextNewsTitle,
+            isVolatile
           };
         } catch (err) {
           console.error(`Error fetching ${symbol}:`, err);

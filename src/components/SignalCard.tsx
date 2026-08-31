@@ -59,6 +59,53 @@ export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize, livePrice
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const getPendingTradeLevels = () => {
+    const isJpy = data.pair.includes('JPY');
+    const pointMultiplier = isJpy ? 0.001 : 0.00001;
+    const decimals = isJpy ? 3 : 5;
+    const slPoints = 850; // User specified 850 points
+    
+    if (data.signal === 'buy') {
+       const stopEntry = currentPrice;
+       const stopTp = stopEntry + (90 * pointMultiplier);
+       const stopSl = stopEntry - (slPoints * pointMultiplier);
+       
+       const limitEntry = stopTp + (10 * pointMultiplier); // 10 poin di atas TP1
+       const limitTp = limitEntry + (200 * pointMultiplier); // Target TP 200 poin
+       const limitSl = limitEntry - (slPoints * pointMultiplier);
+
+       return {
+          stopType: 'BUY STOP',
+          stopEntry: stopEntry.toFixed(decimals),
+          stopTp: stopTp.toFixed(decimals),
+          stopSl: stopSl.toFixed(decimals),
+          limitType: 'BUY LIMIT',
+          limitEntry: limitEntry.toFixed(decimals),
+          limitTp: limitTp.toFixed(decimals),
+          limitSl: limitSl.toFixed(decimals)
+       };
+    } else {
+       const stopEntry = currentPrice;
+       const stopTp = stopEntry - (90 * pointMultiplier);
+       const stopSl = stopEntry + (slPoints * pointMultiplier);
+       
+       const limitEntry = stopTp - (10 * pointMultiplier); // 10 poin di bawah TP1
+       const limitTp = limitEntry - (200 * pointMultiplier); // Target TP 200 poin
+       const limitSl = limitEntry + (slPoints * pointMultiplier);
+
+       return {
+          stopType: 'SELL STOP',
+          stopEntry: stopEntry.toFixed(decimals),
+          stopTp: stopTp.toFixed(decimals),
+          stopSl: stopSl.toFixed(decimals),
+          limitType: 'SELL LIMIT',
+          limitEntry: limitEntry.toFixed(decimals),
+          limitTp: limitTp.toFixed(decimals),
+          limitSl: limitSl.toFixed(decimals)
+       };
+    }
+  };
+
   const getTradeLevels = () => {
     const isJpy = data.pair.includes('JPY');
     const pointMultiplier = isJpy ? 0.001 : 0.00001;
@@ -104,6 +151,7 @@ export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize, livePrice
     }
   };
 
+  const pendingLevels = data.pendingMessage ? getPendingTradeLevels() : null;
   const tradeLevels = getTradeLevels();
 
   return (
@@ -270,6 +318,12 @@ export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize, livePrice
           </button>
         )}
 
+        {!isLocked && data.pendingMessage && (
+          <div className="text-xs text-indigo-400/90 leading-tight flex flex-col gap-1.5 mt-2 bg-indigo-500/10 p-2.5 rounded-lg border border-indigo-500/20 font-medium">
+            <span>{data.pendingMessage}</span>
+          </div>
+        )}
+
         {isLocked && data.lockReason && (
           <div className="text-xs text-amber-500/80 leading-tight flex flex-col gap-1.5 mt-2 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20">
             <span>{data.lockReason}</span>
@@ -305,37 +359,83 @@ export const SignalCard: React.FC<SignalCardProps> = ({ data, lotSize, livePrice
           <div className="flex flex-col gap-6 pt-2">
             <div>
               <h3 className="text-2xl font-bold text-white mb-1">{data.pair}</h3>
-              <p className={cn("text-sm font-semibold uppercase tracking-widest",
-                tradeLevels.type === 'BUY' ? "text-emerald-400" : "text-rose-400"
-              )}>
-                Suggested {tradeLevels.type} Order
-              </p>
+              {!pendingLevels ? (
+                <p className={cn("text-sm font-semibold uppercase tracking-widest",
+                  tradeLevels.type === 'BUY' ? "text-emerald-400" : "text-rose-400"
+                )}>
+                  Suggested {tradeLevels.type} Order
+                </p>
+              ) : (
+                <p className="text-sm font-semibold uppercase tracking-widest text-indigo-400">
+                  Pending Order Strategy
+                </p>
+              )}
             </div>
 
-            <div className="space-y-4">
-              <div className="flex justify-between items-end pb-3 border-b border-neutral-800/60">
-                <span className="text-sm font-medium text-neutral-400 uppercase tracking-widest">Entry</span>
-                <span className="text-xl font-mono text-white">{tradeLevels.entry}</span>
-              </div>
-              <div className="flex justify-between items-end pb-3 border-b border-neutral-800/60">
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-neutral-400 uppercase tracking-widest">Take Profit</span>
-                  {lotSize !== undefined && lotSize > 0 && (
-                    <span className="text-xs text-emerald-500/80 mt-0.5">Est. Profit: +${tradeLevels.estProfit}</span>
-                  )}
+            {!pendingLevels ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-end pb-3 border-b border-neutral-800/60">
+                  <span className="text-sm font-medium text-neutral-400 uppercase tracking-widest">Entry</span>
+                  <span className="text-xl font-mono text-white">{tradeLevels.entry}</span>
                 </div>
-                <span className="text-xl font-mono text-emerald-400">{tradeLevels.tp}</span>
-              </div>
-              <div className="flex justify-between items-end pb-3 border-b border-neutral-800/60">
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-neutral-400 uppercase tracking-widest">Stop Loss</span>
-                  {lotSize !== undefined && lotSize > 0 && (
-                    <span className="text-xs text-rose-500/80 mt-0.5">Est. Loss: -${tradeLevels.estLoss}</span>
-                  )}
+                <div className="flex justify-between items-end pb-3 border-b border-neutral-800/60">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-neutral-400 uppercase tracking-widest">Take Profit</span>
+                    {lotSize !== undefined && lotSize > 0 && (
+                      <span className="text-xs text-emerald-500/80 mt-0.5">Est. Profit: +${tradeLevels.estProfit}</span>
+                    )}
+                  </div>
+                  <span className="text-xl font-mono text-emerald-400">{tradeLevels.tp}</span>
                 </div>
-                <span className="text-xl font-mono text-rose-400">{tradeLevels.sl}</span>
+                <div className="flex justify-between items-end pb-3 border-b border-neutral-800/60">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-neutral-400 uppercase tracking-widest">Stop Loss</span>
+                    {lotSize !== undefined && lotSize > 0 && (
+                      <span className="text-xs text-rose-500/80 mt-0.5">Est. Loss: -${tradeLevels.estLoss}</span>
+                    )}
+                  </div>
+                  <span className="text-xl font-mono text-rose-400">{tradeLevels.sl}</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="space-y-3 bg-neutral-950 p-4 rounded-xl border border-indigo-500/20">
+                  <p className={cn("text-sm font-bold uppercase tracking-widest",
+                    pendingLevels.stopType.includes('BUY') ? "text-emerald-400" : "text-rose-400"
+                  )}>{pendingLevels.stopType}</p>
+                  <div className="flex justify-between items-end">
+                    <span className="text-xs font-medium text-neutral-400 uppercase">Entry</span>
+                    <span className="text-lg font-mono text-white">{pendingLevels.stopEntry}</span>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <span className="text-xs font-medium text-neutral-400 uppercase">Take Profit</span>
+                    <span className="text-lg font-mono text-emerald-400">{pendingLevels.stopTp}</span>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <span className="text-xs font-medium text-neutral-400 uppercase">Stop Loss</span>
+                    <span className="text-lg font-mono text-rose-400">{pendingLevels.stopSl}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3 bg-neutral-950 p-4 rounded-xl border border-indigo-500/20">
+                  <p className={cn("text-sm font-bold uppercase tracking-widest",
+                    pendingLevels.limitType.includes('BUY') ? "text-emerald-400" : "text-rose-400"
+                  )}>{pendingLevels.limitType}</p>
+                  <div className="flex justify-between items-end">
+                    <span className="text-xs font-medium text-neutral-400 uppercase">Entry</span>
+                    <span className="text-lg font-mono text-white">{pendingLevels.limitEntry}</span>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <span className="text-xs font-medium text-neutral-400 uppercase">Take Profit</span>
+                    <span className="text-lg font-mono text-emerald-400">{pendingLevels.limitTp}</span>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <span className="text-xs font-medium text-neutral-400 uppercase">Stop Loss</span>
+                    <span className="text-lg font-mono text-rose-400">{pendingLevels.limitSl}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <button 
               onClick={() => setShowTradeModal(false)}

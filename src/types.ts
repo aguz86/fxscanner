@@ -9,6 +9,8 @@ export interface SignalData {
   lockEndTime?: number | null;
   nextNewsTime?: number | null;
   nextNewsTitle?: string | null;
+  pendingMessage?: string;
+  isVolatile?: boolean;
 }
 
-export type Timeframe = '15m' | '1h' | '4h';
+export type Timeframe = '15m' | '30m' | '1h' | '4h';
